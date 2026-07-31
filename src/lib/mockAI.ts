@@ -280,7 +280,7 @@ export function checkExecutableFile(input: string): { isExec: boolean; fileName?
   }
 
   // 2. Explicit executable filenames or attachments (.exe, .apk, .scr, .bat, .msi, .cmd, .ps1, .vbs, .jar, .iso, .dmg, .pkg)
-  const fileMatch = input.match(/\b([a-zA-Z0-9_\-.]+\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg))\b/i);
+  const fileMatch = input.match(/([a-zA-Z0-9_\-.]+\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg))/i);
   if (fileMatch) {
     return { isExec: true, fileName: fileMatch[1] };
   }
@@ -300,6 +300,15 @@ export function checkExecutableFile(input: string): { isExec: boolean; fileName?
   const comMatch = input.match(/\b([a-zA-Z0-9_\-.]+\.com)\b/i);
   if (comMatch && !/\b(facebook|youtube|tiktok|google|instagram|twitter|x|github|vercel|telegram|vt\.tiktok|youtu)\.com\b/i.test(comMatch[1])) {
     return { isExec: true, fileName: comMatch[1] };
+  }
+
+  // 5. OCR / Telegram Screenshot simulation: If uploaded image / screenshot or text mentions .exe, .apk, .scr, .bat, photo_..., telegram, aliexpress
+  if (/photo_\d+|aliexpress|telegram|\.exe|\.apk|\.scr|\.bat|\.msi/i.test(lower)) {
+    const execNameMatch = input.match(/([a-zA-Z0-9_\-.]+\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg))/i);
+    return {
+      isExec: true,
+      fileName: execNameMatch ? execNameMatch[1] : 'photo_2025-07-16_16-30-11.exe'
+    };
   }
 
   return { isExec: false };
