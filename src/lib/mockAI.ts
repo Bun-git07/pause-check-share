@@ -447,32 +447,47 @@ export async function analyzeContent(
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
+        const isAi = parsed.authenticity?.status ? parsed.authenticity.status !== 'No Indicators' : parsed.aiMediaAnalysis?.assessment !== 'No Indicators';
+        const confidenceVal = parsed.authenticity?.confidence || (parsed.riskScore > 80 ? 94 : 88);
+        const classificationVal = isAi || (parsed.riskScore && parsed.riskScore > 60) || parsed.warningLevel === 'High' ? 'potentially_misleading' : (parsed.riskScore > 35 || parsed.warningLevel === 'Medium') ? 'needs_verification' : 'reliable';
+
+        const rawIndicators = parsed.indicators || parsed.redFlags || [];
+        const warningSigns: WarningSign[] = rawIndicators.map((item: any, idx: number) => {
+          if (typeof item === 'string') {
+            return { id: `rf_${idx}`, icon: '⚠️', title: item, titleKm: item, description: item, descriptionKm: item, severity: 'high' as const };
+          }
+          return {
+            id: `rf_${idx}`,
+            icon: item.severity === 'High' ? '🚨' : '⚠️',
+            title: item.title || 'Indicator',
+            titleKm: item.title || 'សញ្ញាព្រមាន',
+            description: item.description || '',
+            descriptionKm: item.description || '',
+            severity: (item.severity?.toLowerCase() as any) || 'medium',
+          };
+        });
+
+        const rawRecs = parsed.recommendations || [];
+        const recommendations: Recommendation[] = rawRecs.map((r: any, idx: number) => ({
+          id: `rec_${idx}`,
+          icon: '✅',
+          text: typeof r === 'string' ? r : r.text || r.title || 'Verify source',
+          textKm: typeof r === 'string' ? r : r.text || r.title || 'ផ្ទៀងផ្ទាត់ប្រភព',
+        }));
+
         return {
           id: `analysis_${Date.now()}`,
           contentType: type,
-          classification: (parsed.riskScore > 60 ? 'potentially_misleading' : parsed.riskScore > 35 ? 'needs_verification' : 'reliable') as ClassificationLevel,
-          confidence: parsed.riskScore > 80 ? 94 : 88,
-          warningSigns: (parsed.redFlags || []).map((rf: string, idx: number) => ({
-            id: `rf_${idx}`,
-            icon: '⚠️',
-            title: rf,
-            titleKm: rf,
-            description: rf,
-            descriptionKm: rf,
-            severity: 'high' as const,
-          })),
-          explanation: parsed.summary || 'Analysis completed by Gemini 2.5 Flash.',
-          explanationKm: parsed.summary || 'ការវិភាគត្រូវបានបញ្ចប់ដោយ Gemini 2.5 Flash។',
-          recommendations: (parsed.recommendations || []).map((r: string, idx: number) => ({
-            id: `rec_${idx}`,
-            icon: '✅',
-            text: r,
-            textKm: r,
-          })),
+          classification: classificationVal as ClassificationLevel,
+          confidence: confidenceVal,
+          warningSigns,
+          explanation: parsed.summary || 'Analysis completed.',
+          explanationKm: parsed.summary || 'ការវិភាគត្រូវបានបញ្ចប់។',
+          recommendations,
           timestamp: new Date(),
           inputPreview: input.slice(0, 120),
           detectedFileName: parsed.detectedFileName,
-          isAiGenerated: parsed.aiMediaAnalysis?.assessment !== 'No Indicators',
+          isAiGenerated: isAi,
           aiDetectionType: type === 'video' ? 'video' : 'image',
         };
       }
