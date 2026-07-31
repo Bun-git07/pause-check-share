@@ -271,7 +271,7 @@ const ALL_RECOMMENDATIONS: Recommendation[] = [
 // ---- Mock Analysis Logic ----
 
 export function checkExecutableFile(input: string): { isExec: boolean; fileName?: string } {
-  const lower = input.toLowerCase();
+  const lower = input.toLowerCase().trim();
 
   // 1. Disguised extensions like photo.jpg.exe or invoice.pdf.exe
   const disguisedMatch = input.match(/\b([a-zA-Z0-9_\-.]+\.(pdf|jpg|jpeg|png|docx|xlsx|pptx|mp4|zip)\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg))\b/i);
@@ -279,35 +279,27 @@ export function checkExecutableFile(input: string): { isExec: boolean; fileName?
     return { isExec: true, fileName: disguisedMatch[1] };
   }
 
-  // 2. Explicit executable filenames or attachments (e.g. photo_2025-07-16_16-30-11.exe, setup.exe, app.apk)
+  // 2. Explicit executable filenames or attachments (.exe, .apk, .scr, .bat, .msi, .cmd, .ps1, .vbs, .jar, .iso, .dmg, .pkg)
   const fileMatch = input.match(/\b([a-zA-Z0-9_\-.]+\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg))\b/i);
   if (fileMatch) {
     return { isExec: true, fileName: fileMatch[1] };
   }
 
-  // 3. Clean web domain URLs (e.g. tiktok.com, youtube.com, facebook.com) so .com in domain hostnames doesn't trigger .com executable check
-  const urlHostnameRegex = /https?:\/\/[^\s]+|\b[a-z0-9-]+\.(com|net|org|gov|edu|io|co|me|kh|link)(\/[^\s]*)?/gi;
-  const cleanedText = lower.replace(urlHostnameRegex, (urlMatch) => {
-    if (/\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg)(\b|\?|$)/i.test(urlMatch)) {
-      return urlMatch;
+  // 3. Web URLs (e.g. facebook.com, tiktok.com, youtube.com): Ignore .com in web URLs/domains
+  const isWebUrl = /^https?:\/\/|^www\.|tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch|fb\.com/i.test(lower);
+  if (isWebUrl) {
+    // Check if the URL path explicitly ends with an executable file (e.g. http://scam.com/download/setup.exe)
+    const urlExecMatch = input.match(/https?:\/\/[^\s]+\/([a-zA-Z0-9_\-.]+\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg))(\b|\?|$)/i);
+    if (urlExecMatch) {
+      return { isExec: true, fileName: urlExecMatch[1] };
     }
-    return ' ';
-  });
-
-  const anyExecMatch = cleanedText.match(/\b([a-zA-Z0-9_\-.]+\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg))\b/i);
-  if (anyExecMatch) {
-    return { isExec: true, fileName: anyExecMatch[1] };
+    return { isExec: false };
   }
 
-  // 4. Image/Screenshot/Text OCR simulation: if text or filename contains .exe, .apk, .scr, .bat, etc.
-  const ocrMatch = input.match(/([a-zA-Z0-9_\-.]+\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg))/i);
-  if (ocrMatch) {
-    return { isExec: true, fileName: ocrMatch[1] };
-  }
-
-  // 5. Default fallback if input has photo_... or executable pattern in screenshot/telegram
-  if (/photo_\d+|aliexpress|telegram|\.exe/i.test(lower)) {
-    return { isExec: true, fileName: 'photo_2025-07-16_16-30-11.exe' };
+  // 4. Standalone file or message containing .com filename (e.g. payload.com attachment), NOT a web domain
+  const comMatch = input.match(/\b([a-zA-Z0-9_\-.]+\.com)\b/i);
+  if (comMatch && !/\b(facebook|youtube|tiktok|google|instagram|twitter|x|github|vercel|telegram|vt\.tiktok|youtu)\.com\b/i.test(comMatch[1])) {
+    return { isExec: true, fileName: comMatch[1] };
   }
 
   return { isExec: false };
