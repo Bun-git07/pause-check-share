@@ -67,10 +67,18 @@ export default function VerifyPage() {
         input = uploadedFile.name;
         type = uploadedFile.type.startsWith('video/') ? 'video' : 'image';
       } else if (tab === 'link') {
-        input = linkInput;
-        type = LINK_TYPES[linkType].type;
+        input = linkInput.trim();
+        if (/tiktok\.com|vt\.tiktok/i.test(input)) {
+          type = 'tiktok_link';
+        } else if (/youtube\.com|youtu\.be/i.test(input)) {
+          type = 'youtube_link';
+        } else if (/facebook\.com|fb\.watch|fb\.com/i.test(input)) {
+          type = 'facebook_link';
+        } else {
+          type = LINK_TYPES[linkType].type;
+        }
       } else {
-        input = textInput;
+        input = textInput.trim();
         type = 'messenger_message';
       }
       const result = await analyzeContent(input, type);
