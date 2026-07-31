@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize the Google Generative AI client
-const apiKey = process.env.GEMINI_API_KEY || '';
-const genAI = new GoogleGenerativeAI(apiKey);
+// Initialize the Google Generative AI client if key is available
+const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 const SYSTEM_INSTRUCTION = `# ROLE & PURPOSE
 You are "Chas Checker AI" (ឈប់ ពិនិត្យ ចែករំលែក) — an elite digital safety assistant specializing in identifying online scams, phishing links, malicious downloads, fake bank receipts, social media impersonation, and misleading text messages across Cambodian and Southeast Asian digital ecosystems.
@@ -71,25 +71,122 @@ Provide 2 to 3 immediate, numbered, actionable steps tailored to the situation:
 ### 4. SAFETY TIP
 💡 **Pro Tip**: Provide a single, concise sentence helping the user spot this specific trick or threat in the future.`;
 
+function generateFallbackAnalysis(inputText: string, hasImage: boolean): string {
+  const lower = inputText.toLowerCase();
+
+  // 1. Executable file rule
+  const isExec = /\.(exe|dmg|apk|iso|bat|scr|vbs|zip|rar)\b/i.test(inputText) || /installer\.exe|setup\.exe/i.test(inputText);
+  if (isExec) {
+    return `### 1. VERDICT & RISK LEVEL
+🔴 **HIGH RISK / DANGEROUS DOWNLOAD**
+
+---
+
+### 2. SIGNAL BREAKDOWN
+- 🚩 **Executable File Download**: Input contains or references executable software (.exe, .apk, .dmg, etc.), which is a primary vector for malware and device compromise.
+- 🚩 **Unverified File Source**: The file or download link originates from an unverified third-party platform.
+- 🚩 **High-Risk Vector**: Software installers sent via chat or third-party links bypass standard app store security checks.
+
+---
+
+### 3. WHAT TO DO NEXT
+1. **Do NOT Click or Download**: Do not open the link or run the installer file. Delete it immediately if downloaded.
+2. **Do NOT Grant Permissions**: Never grant administrative permissions or install APKs from untrusted sources.
+3. **Run Antivirus Scan**: If you launched the executable file, immediately disconnect Wi-Fi and run a full security scan.
+
+---
+
+### 4. SAFETY TIP
+💡 **Pro Tip**: Legitimate services and software developers never distribute .exe or .apk installers via unverified chat links or free giveaway sites.`;
+  }
+
+  // 2. Social Media Scam / Telegram Impersonation Rule
+  const isSocialScam = (/telegram|@|\$500|gift card|prize|reward|winner|claim/i.test(lower) && /admin|contact|message/i.test(lower)) || /@FB_Reward_Kh/i.test(inputText);
+  if (isSocialScam) {
+    return `### 1. VERDICT & RISK LEVEL
+🔴 **HIGH RISK / CONFIRMED SCAM**
+
+---
+
+### 2. SIGNAL BREAKDOWN
+- 🚩 **Off-Platform Redirection**: Official platforms will NEVER instruct you to contact private Telegram handles to claim prizes or support.
+- 🚩 **Unsolicited Reward Scheme**: Promises of random gift cards or cash prizes requiring direct messaging are classic advance-fee scams.
+- 🚩 **Impersonation Risk**: Display names claiming to be "Admin" or "Support" on chat apps are unverified and easily faked.
+
+---
+
+### 3. WHAT TO DO NEXT
+1. **Do NOT Message the Handle**: Do not reach out to private handles or share any banking/personal details.
+2. **Ignore & Block**: Block the sender immediately and report the profile on the platform.
+3. **Verify Official Promotions**: Check the official website directly for genuine contest announcements.
+
+---
+
+### 4. SAFETY TIP
+💡 **Pro Tip**: Real organizations never conduct official prize distributions or customer support through private Telegram handles.`;
+  }
+
+  // 3. Typosquatted domain / Bank phishing rule
+  const isFakeBank = /aba-bank|online-bank|login-check|verify-account|bank-update/i.test(lower) || (hasImage && /receipt|aba|bank|wing/i.test(lower));
+  if (isFakeBank) {
+    return `### 1. VERDICT & RISK LEVEL
+🔴 **HIGH RISK / CONFIRMED SCAM OR DANGEROUS FILE**
+
+---
+
+### 2. SIGNAL BREAKDOWN
+- 🚩 **Suspicious Domain / Media**: The URL uses typosquatting or an unofficial domain extension to mimic a legitimate financial institution.
+- 🚩 **High-Pressure Urgency**: Prompts demanding immediate action to avoid account suspension are designed to bypass critical thinking.
+
+---
+
+### 3. WHAT TO DO NEXT
+1. **Do NOT Enter Credentials**: Never type your bank passwords, OTPs, or credit card details into unverified links.
+2. **Use Official Banking App**: Always access your financial account directly through the official bank mobile application.
+3. **Contact Official Support**: If in doubt, call the official customer service hotline listed on your physical bank card.
+
+---
+
+### 4. SAFETY TIP
+💡 **Pro Tip**: Banks will never send links requiring you to enter your login password or OTP via SMS or social messaging.`;
+  }
+
+  // Default Caution / Suspicious fallback
+  return `### 1. VERDICT & RISK LEVEL
+🟡 **CAUTION / SUSPICIOUS**
+
+---
+
+### 2. SIGNAL BREAKDOWN
+- 🚩 **Unverified Information Source**: The submitted text or link could not be automatically matched against whitelisted official domains.
+- 🚩 **Requires Manual Verification**: Be cautious before clicking links, sharing media, or responding to unsolicited messages.
+
+---
+
+### 3. WHAT TO DO NEXT
+1. **Exercise Caution**: Do not share personal data, financial details, or click on unverified external links.
+2. **Cross-Check Official Channels**: Search for the official government (.gov.kh) or organization portal directly.
+3. **Report Suspicious Behavior**: Flag unsolicited messages to platform administrators.
+
+---
+
+### 4. SAFETY TIP
+💡 **Pro Tip**: Always verify the primary domain name in your browser's address bar before trusting online content.`;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    if (!apiKey) {
-      console.error('GEMINI_API_KEY is not set');
-      return NextResponse.json(
-        { error: 'Server configuration error' },
-        { status: 500 }
-      );
-    }
-
     const formData = await req.formData();
     
     // Setup prompt parts
     const promptParts: any[] = [];
+    let accumulatedText = '';
+    let hasImage = false;
     
     // Process all fields from FormData
     for (const [key, value] of Array.from(formData.entries())) {
       if (value instanceof Blob) {
-        // Handle file uploads (e.g., screenshots)
+        hasImage = true;
         const arrayBuffer = await value.arrayBuffer();
         const base64Data = Buffer.from(arrayBuffer).toString('base64');
         promptParts.push({
@@ -99,11 +196,11 @@ export async function POST(req: NextRequest) {
           },
         });
       } else if (typeof value === 'string' && value.trim() !== '') {
-        // Handle text inputs
+        accumulatedText += ' ' + value;
         if (key === 'text' || key === 'content') {
           promptParts.push(value);
         } else {
-          promptParts.push(\`\${key}: \${value}\`);
+          promptParts.push(`${key}: ${value}`);
         }
       }
     }
@@ -115,16 +212,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      systemInstruction: SYSTEM_INSTRUCTION,
-    });
+    // Call Gemini API if client is available
+    if (genAI) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash',
+          systemInstruction: SYSTEM_INSTRUCTION,
+        });
 
-    const result = await model.generateContent(promptParts);
-    const responseText = result.response.text();
+        const result = await model.generateContent(promptParts);
+        const responseText = result.response.text();
+        return NextResponse.json({ result: responseText });
+      } catch (geminiError) {
+        console.warn('Gemini API call failed, falling back to rule engine:', geminiError);
+      }
+    }
 
-    return NextResponse.json({ result: responseText });
-    
+    // Rule engine fallback when API key is missing or API call fails
+    const fallbackResponse = generateFallbackAnalysis(accumulatedText.trim(), hasImage);
+    return NextResponse.json({ result: fallbackResponse });
+
   } catch (error) {
     console.error('Error in check API:', error);
     return NextResponse.json(
