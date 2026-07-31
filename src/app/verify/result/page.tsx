@@ -208,24 +208,33 @@ export default function VerifyResultPage() {
           <div
             className="card p-5 shadow-lg relative overflow-hidden"
             style={{
-              background: result.factCheckVerdict === 'VERIFIED' ? '#10b981' : 
-                          result.factCheckVerdict === 'FALSE' ? '#ef4444' : 
-                          result.factCheckVerdict === 'MISLEADING' ? '#f59e0b' : '#9ca3af',
+              background: ['VERIFIED', 'AUTHENTIC'].includes(result.factCheckVerdict) ? '#10b981' : 
+                          ['FALSE', 'FAKE_MANIPULATED', 'SCAM_ALERT'].includes(result.factCheckVerdict) ? '#ef4444' : 
+                          ['MISLEADING', 'SUSPICIOUS_IMAGE', 'MISINFORMATION'].includes(result.factCheckVerdict) ? '#f59e0b' : '#9ca3af',
               color: 'white',
               border: 'none'
             }}
           >
             <div className="relative z-10 flex items-center gap-4">
               <span className="text-5xl shrink-0 drop-shadow-md">
-                {result.factCheckVerdict === 'VERIFIED' ? '✅' : result.factCheckVerdict === 'FALSE' ? '❌' : result.factCheckVerdict === 'MISLEADING' ? '⚠️' : '⚪'}
+                {['VERIFIED', 'AUTHENTIC'].includes(result.factCheckVerdict) ? '✅' : 
+                 ['FALSE', 'FAKE_MANIPULATED'].includes(result.factCheckVerdict) ? '❌' : 
+                 result.factCheckVerdict === 'SCAM_ALERT' ? '🚨' :
+                 ['MISLEADING', 'SUSPICIOUS_IMAGE', 'MISINFORMATION'].includes(result.factCheckVerdict) ? '⚠️' : '⚪'}
               </span>
               <div>
                 <h2 className="font-black text-2xl tracking-wide uppercase drop-shadow-sm" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-                  {khmer && result.factCheckVerdict === 'VERIFIED' ? 'បានផ្ទៀងផ្ទាត់ (VERIFIED)' :
-                   khmer && result.factCheckVerdict === 'FALSE' ? 'ព័ត៌មានមិនពិត (FALSE)' :
-                   khmer && result.factCheckVerdict === 'MISLEADING' ? 'នាំឲ្យយល់ច្រឡំ (MISLEADING)' :
-                   khmer && result.factCheckVerdict === 'UNVERIFIED' ? 'មិនទាន់បញ្ជាក់ (UNVERIFIED)' :
-                   result.factCheckVerdict}
+                  {khmer ? (
+                    result.factCheckVerdict === 'VERIFIED' ? 'បានផ្ទៀងផ្ទាត់ (VERIFIED)' :
+                    result.factCheckVerdict === 'AUTHENTIC' ? 'ត្រឹមត្រូវ (AUTHENTIC)' :
+                    result.factCheckVerdict === 'FALSE' ? 'ព័ត៌មានមិនពិត (FALSE)' :
+                    result.factCheckVerdict === 'FAKE_MANIPULATED' ? 'ក្លែងក្លាយ (FAKE/MANIPULATED)' :
+                    result.factCheckVerdict === 'SCAM_ALERT' ? 'ប្រយ័ត្នការបោកប្រាស់ (SCAM ALERT)' :
+                    result.factCheckVerdict === 'MISLEADING' ? 'នាំឲ្យយល់ច្រឡំ (MISLEADING)' :
+                    result.factCheckVerdict === 'MISINFORMATION' ? 'ព័ត៌មានមិនពិត (MISINFORMATION)' :
+                    result.factCheckVerdict === 'SUSPICIOUS_IMAGE' ? 'រូបភាពគួរឱ្យសង្ស័យ (SUSPICIOUS IMAGE)' :
+                    'មិនទាន់បញ្ជាក់ (UNVERIFIED)'
+                  ) : result.factCheckVerdict.replace('_', ' ')}
                 </h2>
                 {result.factCheckSummary && (
                   <p className="text-sm font-bold opacity-90 mt-1 drop-shadow-sm leading-snug" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit', lineHeight: khmer ? 1.6 : 1.4 }}>

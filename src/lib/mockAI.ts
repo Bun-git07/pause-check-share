@@ -28,6 +28,30 @@ Your task is to analyze the user's input text and provide a structured JSON resp
   "recommended_action": "Actionable advice for the user"
 }`;
 
+export const IMAGE_FACT_CHECKER_SYSTEM_PROMPT = `You are an expert multimodal fact-checker and visual threat analyzer for "Pause, Check, Share" (ChasChecker). 
+
+Your task is to analyze the provided screenshot image directly. Do NOT just extract links—evaluate the full visual content, text, layout, and claims shown in the image.
+
+### Evaluation Criteria:
+1. Visual Authenticity: Check for signs of image manipulation, photo editing, misaligned fonts (common in fake bank receipts/transfers), or fake social media UI elements.
+2. Text/Claim Fact-Check: Read the text inside the screenshot and verify whether the claim, headline, or message is true, unverified, or known misinformation.
+3. Scam/Phishing Detection: Identify fake job offers, impersonation of officials/banks, fake giveaways, or dangerous URLs visible in the screenshot.
+
+### Language Requirement:
+- Output analysis in both English and Khmer where helpful for clarity.
+
+### Required JSON Output Format:
+{
+  "verdict": "AUTHENTIC" | "SUSPICIOUS_IMAGE" | "FAKE_MANIPULATED" | "MISINFORMATION" | "SCAM_ALERT",
+  "confidence_score": 0-100,
+  "summary": "Clear 1-2 sentence breakdown of what is shown in the image and its validity.",
+  "visual_red_flags": [
+    "List specific visual red flags found (e.g., 'Font mismatch on payment amount', 'Fake verified checkmark')"
+  ],
+  "content_fact_check": "Brief analysis of the actual claim or text inside the image.",
+  "recommended_action": "Direct safety guidance (e.g., 'Do not send money', 'Do not share this post')."
+}`;
+
 export const CHASCHECKER_SYSTEM_PROMPT_V2 = `# CHASCHECKER AI SYSTEM INSTRUCTION
 
 You are ChasChecker AI, an advanced Digital Safety, Cybersecurity, Scam Detection, and Misinformation Analysis Assistant.
@@ -460,8 +484,14 @@ export async function analyzeContent(
   input: string,
   type: ContentType
 ): Promise<AnalysisResult> {
-  const isFactCheck = type === 'text' || type === 'social_post';
-  const model = getChasCheckerModel(isFactCheck ? FACT_CHECKER_SYSTEM_PROMPT : CHASCHECKER_SYSTEM_PROMPT_V2);
+  const isTextFactCheck = type === 'text' || type === 'social_post';
+  const isImageFactCheck = type === 'image' || type === 'screenshot';
+  
+  let systemPrompt = CHASCHECKER_SYSTEM_PROMPT_V2;
+  if (isTextFactCheck) systemPrompt = FACT_CHECKER_SYSTEM_PROMPT;
+  if (isImageFactCheck) systemPrompt = IMAGE_FACT_CHECKER_SYSTEM_PROMPT;
+
+  const model = getChasCheckerModel(systemPrompt);
   
   if (model) {
     try {
@@ -472,28 +502,37 @@ export async function analyzeContent(
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         
-        // Handle Fact-Checker JSON format
-        if (isFactCheck && parsed.verdict) {
+        // Handle Fact-Checker JSON format (Text and Image)
+        if ((isTextFactCheck || isImageFactCheck) && parsed.verdict) {
           const confidenceVal = parsed.confidence_score || 85;
-          let classificationVal: ClassificationLevel = 'potentially_misleading';
-          if (parsed.verdict === 'FALSE' || parsed.verdict === 'MISLEADING') classificationVal = 'potentially_misleading';
-          if (parsed.verdict === 'UNVERIFIED') classificationVal = 'needs_verification';
+          let classificationVal: ClassificationLevel = 'reliable';
           
+          if (parsed.verdict === 'FALSE' || parsed.verdict === 'MISLEADING' || parsed.verdict === 'FAKE_MANIPULATED' || parsed.verdict === 'SCAM_ALERT') {
+            classificationVal = 'potentially_misleading';
+          } else if (parsed.verdict === 'UNVERIFIED' || parsed.verdict === 'SUSPICIOUS_IMAGE' || parsed.verdict === 'MISINFORMATION') {
+            classificationVal = 'needs_verification';
+          }
+          
+          const reasons = parsed.visual_red_flags || parsed.key_reasons || [];
+          const summaryText = parsed.summary || (isImageFactCheck ? 'Image analysis completed.' : 'Fact check completed.');
+          const summaryTextKm = parsed.summary || (isImageFactCheck ? 'ការវិភាគរូបភាពត្រូវបានបញ្ចប់។' : 'ការផ្ទៀងផ្ទាត់ត្រូវបានបញ្ចប់។');
+          const explanationText = parsed.content_fact_check || summaryText;
+
           return {
             id: `analysis_${Date.now()}`,
             contentType: type,
             classification: classificationVal,
             confidence: confidenceVal,
-            warningSigns: (parsed.key_reasons || []).map((r: string, i: number) => ({
-              id: `fc_reason_${i}`, icon: '🔎', title: r, titleKm: r, description: r, descriptionKm: r, severity: 'medium'
+            warningSigns: reasons.map((r: string, i: number) => ({
+              id: `fc_reason_${i}`, icon: '🔎', title: r, titleKm: r, description: r, descriptionKm: r, severity: (parsed.verdict === 'SCAM_ALERT' || parsed.verdict === 'FAKE_MANIPULATED') ? 'high' : 'medium'
             })),
-            explanation: parsed.summary || 'Fact check completed.',
-            explanationKm: parsed.summary || 'ការផ្ទៀងផ្ទាត់ត្រូវបានបញ្ចប់។',
+            explanation: explanationText,
+            explanationKm: summaryTextKm,
             recommendations: parsed.recommended_action ? [{ id: 'rec_0', icon: '✅', text: parsed.recommended_action, textKm: parsed.recommended_action }] : [],
             timestamp: new Date(),
             inputPreview: input.slice(0, 120),
             factCheckVerdict: parsed.verdict,
-            factCheckSummary: parsed.summary
+            factCheckSummary: summaryText
           };
         }
 
@@ -564,6 +603,26 @@ export async function analyzeContent(
       inputPreview: input.slice(0, 120),
       factCheckVerdict: 'UNVERIFIED',
       factCheckSummary: 'We could not reliably confirm the accuracy of this text. Please double-check with official sources.'
+    };
+  }
+
+  if (type === 'image' || type === 'screenshot') {
+    const aiCheck = checkAiGeneratedMedia(input, type);
+    return {
+      id: `mock_img_fc_${Date.now()}`,
+      contentType: type,
+      classification: aiCheck.isAi ? 'potentially_misleading' : 'reliable',
+      confidence: aiCheck.isAi ? 91 : 85,
+      warningSigns: aiCheck.isAi ? [ALL_WARNING_SIGNS[5]] : [], // ai_artifacts
+      explanation: aiCheck.isAi ? 'Image contains strong AI artifacts.' : 'Image appears visually authentic.',
+      explanationKm: aiCheck.isAi ? 'រូបភាពមានសញ្ញា AI ខ្លាំង។' : 'រូបភាពហាក់ដូចជាពិតប្រាកដ។',
+      recommendations: [{ id: 'rec_img', icon: '🔍', text: 'Verify the original source of the image.', textKm: 'ផ្ទៀងផ្ទាត់ប្រភពដើមនៃរូបភាព។' }],
+      timestamp: new Date(),
+      inputPreview: input.slice(0, 120),
+      factCheckVerdict: aiCheck.isAi ? 'FAKE_MANIPULATED' : 'AUTHENTIC',
+      factCheckSummary: aiCheck.isAi ? 'This image was likely generated or heavily manipulated by AI.' : 'No obvious signs of manipulation detected by fallback engine.',
+      isAiGenerated: aiCheck.isAi,
+      aiDetectionType: aiCheck.isAi ? 'image' : undefined,
     };
   }
 

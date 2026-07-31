@@ -31,7 +31,7 @@ export interface WarningSign {
   severity: WarningSeverity;
 }
 
-export type FactCheckVerdict = 'VERIFIED' | 'UNVERIFIED' | 'MISLEADING' | 'FALSE';
+export type FactCheckVerdict = 'VERIFIED' | 'UNVERIFIED' | 'MISLEADING' | 'FALSE' | 'AUTHENTIC' | 'SUSPICIOUS_IMAGE' | 'FAKE_MANIPULATED' | 'SCAM_ALERT' | 'MISINFORMATION';
 
 export interface AnalysisResult {
   id: string;
