@@ -7,153 +7,40 @@ import {
 } from '@/types';
 import { getChasCheckerModel } from './gemini';
 
-export const FACT_CHECKER_SYSTEM_PROMPT = `You are an expert fact-checking assistant for "Pause, Check, Share" (ChasChecker), designed to analyze news claims, social media posts, and viral text circulating online (specifically tailored for users in Cambodia).
+export const CORE_INTELLIGENCE_PROMPT = `You are the core intelligence engine for "ChasChecker" (Pause, Check, Share). Your job is to analyze user-submitted screenshots or links for false information, AI-generated content, fake news, and financial/phishing scams.
 
-Your task is to analyze the user's input text and provide a structured JSON response evaluating its authenticity.
+### Analysis Requirements:
+1. For Screenshots:
+   - Identify visual manipulation (edited text, mismatched alignment/fonts on payment receipts or social posts).
+   - Detect AI-generated images or deepfake artifacts.
+   - Extract and verify the core textual claim against factual knowledge.
+2. For Links / URLs:
+   - Identify domain spoofing, suspicious TLDs, or phishing structures.
+   - Evaluate whether the linked content presents unverified viral claims or fake news.
 
-### System Instructions:
-1. Language Support: Analyze inputs in Khmer, English, or mixed Khmer-English. Respond in the same primary language as the user's input.
-2. Risk Levels:
-   - VERIFIED: Clear evidence supports this claim from official sources or trusted news outlets.
-   - UNVERIFIED: Insufficient reliable information available to confirm or deny.
-   - MISLEADING: Contains partial truths presented out of context or edited media.
-   - FALSE / MISINFORMATION: Proven false by official statements, fact-checkers, or reliable data.
+### Scoring Logic:
+- TRUST_SCORE: Integer from 0 to 100 where 0 is BAD/HIGH RISK and 100 is GOOD/SAFE.
+  - 80 – 100: SAFE / AUTHENTIC (Verified, legitimate source, no threat found)
+  - 40 – 79: CAUTION / UNVERIFIED (Unconfirmed claims, unverified domain, use care)
+  - 0 – 39: DANGER / BAD (Scam, phishing, fake news, manipulated media)
+- VERDICT: Must be one of ["SAFE_AUTHENTIC", "CAUTION_UNVERIFIED", "MISLEADING_FAKENEWS", "MANIPULATED_MEDIA", "SCAM_PHISHING"]
 
-### Required JSON Output Format:
+### Output Standard (Strict JSON):
 {
-  "verdict": "VERIFIED" | "UNVERIFIED" | "MISLEADING" | "FALSE",
-  "confidence_score": 0-100,
-  "summary": "Short 1-2 sentence explanation of the finding.",
-  "key_reasons": ["Reason 1", "Reason 2"],
-  "recommended_action": "Actionable advice for the user"
-}`;
-
-export const IMAGE_FACT_CHECKER_SYSTEM_PROMPT = `You are an expert multimodal fact-checker and visual threat analyzer for "Pause, Check, Share" (ChasChecker). 
-
-Your task is to analyze the provided screenshot image directly. Do NOT just extract links—evaluate the full visual content, text, layout, and claims shown in the image.
-
-### Evaluation Criteria:
-1. Visual Authenticity: Check for signs of image manipulation, photo editing, misaligned fonts (common in fake bank receipts/transfers), or fake social media UI elements.
-2. Text/Claim Fact-Check: Read the text inside the screenshot and verify whether the claim, headline, or message is true, unverified, or known misinformation.
-3. Scam/Phishing Detection: Identify fake job offers, impersonation of officials/banks, fake giveaways, or dangerous URLs visible in the screenshot.
-
-### Language Requirement:
-- Output analysis in both English and Khmer where helpful for clarity.
-
-### Required JSON Output Format:
-{
-  "verdict": "AUTHENTIC" | "SUSPICIOUS_IMAGE" | "FAKE_MANIPULATED" | "MISINFORMATION" | "SCAM_ALERT",
-  "confidence_score": 0-100,
-  "summary": "Clear 1-2 sentence breakdown of what is shown in the image and its validity.",
-  "visual_red_flags": [
-    "List specific visual red flags found (e.g., 'Font mismatch on payment amount', 'Fake verified checkmark')"
+  "trust_score": 12,
+  "verdict": "SCAM_PHISHING",
+  "detection_type": "Screenshot",
+  "summary_en": "This screenshot displays a modified ABA Bank transaction receipt with altered payment amounts.",
+  "summary_km": "រូបភាពអេក្រង់នេះបង្ហាញពីវិក្កយបត្រផ្ទេរប្រាក់ដែលត្រូវបានកែច្នៃចំនួនទឹកប្រាក់។",
+  "red_flags": [
+    "Font size and alignment on the amount field do not match standard banking UI.",
+    "Transaction ID format does not conform to official bank patterns."
   ],
-  "content_fact_check": "Brief analysis of the actual claim or text inside the image.",
-  "recommended_action": "Direct safety guidance (e.g., 'Do not send money', 'Do not share this post')."
+  "sources_or_references": [
+    "https://www.ababank.com/security-tips"
+  ],
+  "action_advice": "Do not release goods or accept this receipt as proof of payment."
 }`;
-
-export const CHASCHECKER_SYSTEM_PROMPT_V2 = `# CHASCHECKER AI SYSTEM INSTRUCTION
-
-You are ChasChecker AI, an advanced Digital Safety, Cybersecurity, Scam Detection, and Misinformation Analysis Assistant.
-
-Your mission is to protect users from scams, phishing, malware, fake news, deepfakes, manipulated media, and other online threats.
-
-Your highest priority is user safety while remaining factual, evidence-based, and transparent.
-
-Never invent evidence.
-Never exaggerate.
-Never make unsupported accusations.
-Always explain WHY something appears suspicious.
-
----------------------------------------------------
-PRIMARY OBJECTIVES
----------------------------------------------------
-
-Analyze every uploaded image, screenshot, PDF, document, URL, or text for:
-• Cybersecurity threats
-• Malware indicators
-• Executable files
-• Scam indicators
-• Phishing attempts
-• Fake websites
-• Social engineering
-• Fake news
-• Manipulated images
-• AI-generated media
-• Deepfakes
-• Fraud
-• Impersonation
-
----------------------------------------------------
-STEP 1 — EXTRACT EVERYTHING
----------------------------------------------------
-
-Carefully inspect every visible element: filenames, file extensions, URLs, QR codes, email addresses, phone numbers, usernames, social media accounts, logos, app names, browser tabs, timestamps, download buttons, warning dialogs, advertisements, payment requests, bank info, attachments.
-
----------------------------------------------------
-STEP 2 — EXECUTABLE FILE DETECTION (HIGHEST PRIORITY)
----------------------------------------------------
-
-If any filename ends with:
-.exe, .msi, .bat, .cmd, .scr, .ps1, .vbs, .jar, .com, .apk, .iso, .dmg, .pkg
-
-Immediately create a CRITICAL warning and display:
-🚨 MASSIVE RED FLAG DETECTED
-
-Explain:
-Executable files can install software or execute code on a device. They are one of the most common malware distribution methods. Users should never open unexpected executable files from messaging apps (Facebook, Messenger, Telegram, WhatsApp, Discord), email, or unknown websites.
-
-If filenames attempt to disguise themselves (e.g., invoice.pdf.exe, photo.jpg.exe), treat as EXTREMELY HIGH RISK.
-
----------------------------------------------------
-STEP 3 — SCAM DETECTION
----------------------------------------------------
-
-Detect fake bank messages, government notices, investment/crypto scams, romance scams, fake giveaways, parcel delivery, customer support, fake shopping sites, impersonation, fake invoices, and account verification scams.
-
----------------------------------------------------
-STEP 4 — PHISHING
----------------------------------------------------
-
-Identify fake login pages, impersonation of major platforms (Microsoft, Google, Apple, Facebook, Telegram, banks), suspicious domains, shortened URLs, QR codes, and requests for passwords, OTPs, or credentials.
-
----------------------------------------------------
-STEP 5 — AI GENERATED CONTENT & DEEPFAKES
----------------------------------------------------
-
-Analyze images and videos for possible AI generation: distorted hands, extra/missing fingers, warped objects, inconsistent lighting/shadows, face blending artifacts, lip sync mismatch, unnatural blinking, duplicated objects, melted text, fake reflections, synthetic voice characteristics.
-
-Classify as:
-• No Indicators
-• Possible AI Generated
-• Likely AI Generated
-• Strong Indicators
-
----------------------------------------------------
-STEP 6 — MISINFORMATION
----------------------------------------------------
-
-Detect fake news, manipulated screenshots, edited images, fake government notices, unverified health claims, and fabricated evidence.
-
----------------------------------------------------
-STEP 7 — SOCIAL ENGINEERING
----------------------------------------------------
-
-Identify urgency, fear, authority abuse, pressure, scarcity, threats, FOMO, and emotional manipulation.
-
----------------------------------------------------
-STEP 8 — RISK SCORING & OUTPUT FORMAT
----------------------------------------------------
-
-Generate risk score (0–100):
-• 0–20: 🟢 Safe
-• 21–40: 🟡 Low Risk
-• 41–60: 🟠 Suspicious
-• 61–80: 🔴 High Risk
-• 81–100: 🚨 Critical
-
-Return ONLY valid JSON output format matching the analysis schema.
-`;
 
 // ---- Warning Signs Library ----
 const ALL_WARNING_SIGNS: WarningSign[] = [
@@ -486,12 +373,7 @@ export async function analyzeContent(
   fileData?: string,
   fileMimeType?: string
 ): Promise<AnalysisResult> {
-  const isTextFactCheck = type === 'text' || type === 'social_post';
-  const isImageFactCheck = type === 'image' || type === 'screenshot';
-  
-  let systemPrompt = CHASCHECKER_SYSTEM_PROMPT_V2;
-  if (isTextFactCheck) systemPrompt = FACT_CHECKER_SYSTEM_PROMPT;
-  if (isImageFactCheck) systemPrompt = IMAGE_FACT_CHECKER_SYSTEM_PROMPT;
+  let systemPrompt = CORE_INTELLIGENCE_PROMPT;
 
   const model = getChasCheckerModel(systemPrompt);
   
@@ -522,152 +404,95 @@ export async function analyzeContent(
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         
-        // Handle Fact-Checker JSON format (Text and Image)
-        if ((isTextFactCheck || isImageFactCheck) && parsed.verdict) {
-          const confidenceVal = parsed.confidence_score || 85;
+        // Handle Unified Core Intelligence Engine format
+        if (parsed.verdict) {
+          const confidenceVal = typeof parsed.trust_score === 'number' ? parsed.trust_score : 50;
           let classificationVal: ClassificationLevel = 'reliable';
           
-          if (parsed.verdict === 'FALSE' || parsed.verdict === 'MISLEADING' || parsed.verdict === 'FAKE_MANIPULATED' || parsed.verdict === 'SCAM_ALERT') {
+          if (['MISLEADING_FAKENEWS', 'MANIPULATED_MEDIA', 'SCAM_PHISHING'].includes(parsed.verdict)) {
             classificationVal = 'potentially_misleading';
-          } else if (parsed.verdict === 'UNVERIFIED' || parsed.verdict === 'SUSPICIOUS_IMAGE' || parsed.verdict === 'MISINFORMATION') {
+          } else if (parsed.verdict === 'CAUTION_UNVERIFIED') {
             classificationVal = 'needs_verification';
           }
           
-          const reasons = parsed.visual_red_flags || parsed.key_reasons || [];
-          const summaryText = parsed.summary || (isImageFactCheck ? 'Image analysis completed.' : 'Fact check completed.');
-          const summaryTextKm = parsed.summary || (isImageFactCheck ? 'ការវិភាគរូបភាពត្រូវបានបញ្ចប់។' : 'ការផ្ទៀងផ្ទាត់ត្រូវបានបញ្ចប់។');
-          const explanationText = parsed.content_fact_check || summaryText;
+          const rawFlags = parsed.red_flags || [];
+          const warningSigns: WarningSign[] = rawFlags.map((r: string, i: number) => ({
+            id: `core_flag_${i}`, 
+            icon: parsed.verdict === 'SCAM_PHISHING' ? '🚨' : '⚠️', 
+            title: r, 
+            titleKm: r, 
+            description: r, 
+            descriptionKm: r, 
+            severity: ['MISLEADING_FAKENEWS', 'MANIPULATED_MEDIA', 'SCAM_PHISHING'].includes(parsed.verdict) ? 'high' : 'medium'
+          }));
+
+          const sources = parsed.sources_or_references || [];
+          const recs: Recommendation[] = [];
+          if (parsed.action_advice) {
+            recs.push({ id: 'rec_advice', icon: '💡', text: parsed.action_advice, textKm: parsed.action_advice });
+          }
+          sources.forEach((src: string, i: number) => {
+            recs.push({ id: `rec_src_${i}`, icon: '🔗', text: src, textKm: src });
+          });
 
           return {
             id: `analysis_${Date.now()}`,
             contentType: type,
             classification: classificationVal,
             confidence: confidenceVal,
-            warningSigns: reasons.map((r: string, i: number) => ({
-              id: `fc_reason_${i}`, icon: '🔎', title: r, titleKm: r, description: r, descriptionKm: r, severity: (parsed.verdict === 'SCAM_ALERT' || parsed.verdict === 'FAKE_MANIPULATED') ? 'high' : 'medium'
-            })),
-            explanation: explanationText,
-            explanationKm: summaryTextKm,
-            recommendations: parsed.recommended_action ? [{ id: 'rec_0', icon: '✅', text: parsed.recommended_action, textKm: parsed.recommended_action }] : [],
+            warningSigns,
+            explanation: parsed.summary_en || 'Analysis completed.',
+            explanationKm: parsed.summary_km || 'ការវិភាគត្រូវបានបញ្ចប់។',
+            recommendations: recs,
             timestamp: new Date(),
             inputPreview: input.slice(0, 120),
-            factCheckVerdict: parsed.verdict,
-            factCheckSummary: summaryText
+            coreVerdict: parsed.verdict,
+            coreSummary: parsed.summary_en || ''
           };
         }
-
-        // Standard AI Media format
-        const isAi = parsed.authenticity?.status ? parsed.authenticity.status !== 'No Indicators' : parsed.aiMediaAnalysis?.assessment !== 'No Indicators';
-        const confidenceVal = parsed.authenticity?.confidence || (parsed.riskScore > 80 ? 94 : 88);
-        const classificationVal = isAi || (parsed.riskScore && parsed.riskScore > 60) || parsed.warningLevel === 'High' ? 'potentially_misleading' : (parsed.riskScore > 35 || parsed.warningLevel === 'Medium') ? 'needs_verification' : 'reliable';
-
-        const rawIndicators = parsed.indicators || parsed.redFlags || [];
-        const warningSigns: WarningSign[] = rawIndicators.map((item: any, idx: number) => {
-          if (typeof item === 'string') {
-            return { id: `rf_${idx}`, icon: '⚠️', title: item, titleKm: item, description: item, descriptionKm: item, severity: 'high' as const };
-          }
-          return {
-            id: `rf_${idx}`,
-            icon: item.severity === 'High' ? '🚨' : '⚠️',
-            title: item.title || 'Indicator',
-            titleKm: item.title || 'សញ្ញាព្រមាន',
-            description: item.description || '',
-            descriptionKm: item.description || '',
-            severity: (item.severity?.toLowerCase() as any) || 'medium',
-          };
-        });
-
-        const rawRecs = parsed.recommendations || [];
-        const recommendations: Recommendation[] = rawRecs.map((r: any, idx: number) => ({
-          id: `rec_${idx}`,
-          icon: '✅',
-          text: typeof r === 'string' ? r : r.text || r.title || 'Verify source',
-          textKm: typeof r === 'string' ? r : r.text || r.title || 'ផ្ទៀងផ្ទាត់ប្រភព',
-        }));
-
-        return {
-          id: `analysis_${Date.now()}`,
-          contentType: type,
-          classification: classificationVal as ClassificationLevel,
-          confidence: confidenceVal,
-          warningSigns,
-          explanation: parsed.summary || 'Analysis completed.',
-          explanationKm: parsed.summary || 'ការវិភាគត្រូវបានបញ្ចប់។',
-          recommendations,
-          timestamp: new Date(),
-          inputPreview: input.slice(0, 120),
-          detectedFileName: parsed.detectedFileName,
-          isAiGenerated: isAi,
-          aiDetectionType: type === 'video' ? 'video' : 'image',
-        };
       }
     } catch (err) {
-      console.warn('Gemini 2.5 Flash live call fallback:', err);
+      console.warn('Gemini 3.1 Pro live call fallback:', err);
     }
   }
 
   // Fallback to local deterministic safety engine
   await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 500));
 
-  if (type === 'text' || type === 'social_post') {
-    return {
-      id: `mock_fc_${Date.now()}`,
-      contentType: type,
-      classification: 'potentially_misleading',
-      confidence: 82,
-      warningSigns: [],
-      explanation: 'Fact check completed by fallback engine.',
-      explanationKm: 'ការផ្ទៀងផ្ទាត់ត្រូវបានបញ្ចប់។',
-      recommendations: [{ id: 'rec_fb', icon: '✅', text: 'Verify this information via official news outlets.', textKm: 'ផ្ទៀងផ្ទាត់ព័ត៌មាននេះតាមរយៈប្រភពផ្លូវការ។' }],
-      timestamp: new Date(),
-      inputPreview: input.slice(0, 120),
-      factCheckVerdict: 'UNVERIFIED',
-      factCheckSummary: 'We could not reliably confirm the accuracy of this text. Please double-check with official sources.'
-    };
+  let fallbackVerdict = 'CAUTION_UNVERIFIED' as any;
+  let fallbackClassification: ClassificationLevel = 'needs_verification';
+  let fallbackSummary = 'We could not reliably confirm the accuracy of this content. Please double-check with official sources.';
+  let confidenceVal = 65;
+  
+  const lowerInput = input.toLowerCase();
+  
+  if (lowerInput.includes('win') || lowerInput.includes('prize') || lowerInput.includes('free') || lowerInput.includes('urgent')) {
+    fallbackVerdict = 'SCAM_PHISHING';
+    fallbackClassification = 'potentially_misleading';
+    fallbackSummary = 'Strong scam indicators detected. Avoid engaging with this content.';
+    confidenceVal = 85;
+  } else if (lowerInput.includes('news') || lowerInput.includes('breaking')) {
+    fallbackVerdict = 'MISLEADING_FAKENEWS';
+    fallbackClassification = 'potentially_misleading';
+    fallbackSummary = 'This content appears to be sensationalized or unverified news.';
+    confidenceVal = 70;
+  } else if (type === 'image' || type === 'screenshot') {
+    fallbackVerdict = 'CAUTION_UNVERIFIED';
+    fallbackSummary = 'The image may contain unverified claims or manipulations. Please be cautious.';
   }
-
-  if (type === 'image' || type === 'screenshot') {
-    const aiCheck = checkAiGeneratedMedia(input, type);
-    return {
-      id: `mock_img_fc_${Date.now()}`,
-      contentType: type,
-      classification: aiCheck.isAi ? 'potentially_misleading' : 'reliable',
-      confidence: aiCheck.isAi ? 91 : 85,
-      warningSigns: aiCheck.isAi ? [ALL_WARNING_SIGNS[5]] : [], // ai_artifacts
-      explanation: aiCheck.isAi ? 'Image contains strong AI artifacts.' : 'Image appears visually authentic.',
-      explanationKm: aiCheck.isAi ? 'រូបភាពមានសញ្ញា AI ខ្លាំង។' : 'រូបភាពហាក់ដូចជាពិតប្រាកដ។',
-      recommendations: [{ id: 'rec_img', icon: '🔍', text: 'Verify the original source of the image.', textKm: 'ផ្ទៀងផ្ទាត់ប្រភពដើមនៃរូបភាព។' }],
-      timestamp: new Date(),
-      inputPreview: input.slice(0, 120),
-      factCheckVerdict: aiCheck.isAi ? 'FAKE_MANIPULATED' : 'AUTHENTIC',
-      factCheckSummary: aiCheck.isAi ? 'This image was likely generated or heavily manipulated by AI.' : 'No obvious signs of manipulation detected by fallback engine.',
-      isAiGenerated: aiCheck.isAi,
-      aiDetectionType: aiCheck.isAi ? 'image' : undefined,
-    };
-  }
-
-  const execCheck = checkExecutableFile(input);
-  const aiCheck = checkAiGeneratedMedia(input, type);
-  const warnings = detectWarnings(input, type);
-  const classification = classifyContent(input, type, warnings);
-  const recommendations = buildRecommendations(classification, warnings);
-  const confidence = execCheck.isExec ? 94 : aiCheck.isAi ? 91 : (classification === 'reliable' ? 88 + Math.floor(Math.random() * 8) :
-    classification === 'needs_verification' ? 60 + Math.floor(Math.random() * 15) :
-      85 + Math.floor(Math.random() * 10));
 
   return {
-    id: `analysis_${Date.now()}`,
+    id: `mock_core_${Date.now()}`,
     contentType: type,
-    classification,
-    confidence,
-    warningSigns: warnings,
-    explanation: buildExplanation(classification, warnings, type),
-    explanationKm: buildExplanationKm(classification, warnings),
-    recommendations,
+    classification: fallbackClassification,
+    confidence: confidenceVal,
+    warningSigns: [],
+    explanation: fallbackSummary,
+    explanationKm: 'ការវិភាគត្រូវបានបញ្ចប់។',
+    recommendations: [{ id: 'rec_fb', icon: '✅', text: 'Verify this information via official sources.', textKm: 'ផ្ទៀងផ្ទាត់ព័ត៌មាននេះតាមរយៈប្រភពផ្លូវការ។' }],
     timestamp: new Date(),
     inputPreview: input.slice(0, 120),
-    detectedFileName: execCheck.fileName || (execCheck.isExec ? 'photo_2025-07-16_16-30-11.exe' : undefined),
-    isAiGenerated: aiCheck.isAi,
-    aiDetectionType: aiCheck.aiType,
+    coreVerdict: fallbackVerdict,
+    coreSummary: fallbackSummary
   };
 }

@@ -31,7 +31,7 @@ export interface WarningSign {
   severity: WarningSeverity;
 }
 
-export type FactCheckVerdict = 'VERIFIED' | 'UNVERIFIED' | 'MISLEADING' | 'FALSE' | 'AUTHENTIC' | 'SUSPICIOUS_IMAGE' | 'FAKE_MANIPULATED' | 'SCAM_ALERT' | 'MISINFORMATION';
+export type CoreVerdict = 'SAFE_AUTHENTIC' | 'CAUTION_UNVERIFIED' | 'MISLEADING_FAKENEWS' | 'MANIPULATED_MEDIA' | 'SCAM_PHISHING';
 
 export interface AnalysisResult {
   id: string;
@@ -47,8 +47,8 @@ export interface AnalysisResult {
   detectedFileName?: string; // Executable or target file name
   isAiGenerated?: boolean;
   aiDetectionType?: 'image' | 'video' | 'deepfake' | 'audio';
-  factCheckVerdict?: FactCheckVerdict;
-  factCheckSummary?: string;
+  coreVerdict?: CoreVerdict;
+  coreSummary?: string;
 }
 
 export interface Recommendation {

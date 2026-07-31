@@ -203,42 +203,37 @@ export default function VerifyResultPage() {
           </div>
         )}
 
-        {/* Fact-Check Verdict Banner */}
-        {result.factCheckVerdict && (
+        {/* Core Intelligence Verdict Banner */}
+        {result.coreVerdict && (
           <div
             className="card p-5 shadow-lg relative overflow-hidden"
             style={{
-              background: ['VERIFIED', 'AUTHENTIC'].includes(result.factCheckVerdict) ? '#10b981' : 
-                          ['FALSE', 'FAKE_MANIPULATED', 'SCAM_ALERT'].includes(result.factCheckVerdict) ? '#ef4444' : 
-                          ['MISLEADING', 'SUSPICIOUS_IMAGE', 'MISINFORMATION'].includes(result.factCheckVerdict) ? '#f59e0b' : '#9ca3af',
+              background: result.coreVerdict === 'SAFE_AUTHENTIC' ? '#10b981' : 
+                          ['MISLEADING_FAKENEWS', 'MANIPULATED_MEDIA', 'SCAM_PHISHING'].includes(result.coreVerdict) ? '#ef4444' : '#f59e0b',
               color: 'white',
               border: 'none'
             }}
           >
             <div className="relative z-10 flex items-center gap-4">
               <span className="text-5xl shrink-0 drop-shadow-md">
-                {['VERIFIED', 'AUTHENTIC'].includes(result.factCheckVerdict) ? '✅' : 
-                 ['FALSE', 'FAKE_MANIPULATED'].includes(result.factCheckVerdict) ? '❌' : 
-                 result.factCheckVerdict === 'SCAM_ALERT' ? '🚨' :
-                 ['MISLEADING', 'SUSPICIOUS_IMAGE', 'MISINFORMATION'].includes(result.factCheckVerdict) ? '⚠️' : '⚪'}
+                {result.coreVerdict === 'SAFE_AUTHENTIC' ? '✅' : 
+                 ['MISLEADING_FAKENEWS', 'MANIPULATED_MEDIA'].includes(result.coreVerdict) ? '❌' : 
+                 result.coreVerdict === 'SCAM_PHISHING' ? '🚨' : '⚠️'}
               </span>
               <div>
                 <h2 className="font-black text-2xl tracking-wide uppercase drop-shadow-sm" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
                   {khmer ? (
-                    result.factCheckVerdict === 'VERIFIED' ? 'បានផ្ទៀងផ្ទាត់ (VERIFIED)' :
-                    result.factCheckVerdict === 'AUTHENTIC' ? 'ត្រឹមត្រូវ (AUTHENTIC)' :
-                    result.factCheckVerdict === 'FALSE' ? 'ព័ត៌មានមិនពិត (FALSE)' :
-                    result.factCheckVerdict === 'FAKE_MANIPULATED' ? 'ក្លែងក្លាយ (FAKE/MANIPULATED)' :
-                    result.factCheckVerdict === 'SCAM_ALERT' ? 'ប្រយ័ត្នការបោកប្រាស់ (SCAM ALERT)' :
-                    result.factCheckVerdict === 'MISLEADING' ? 'នាំឲ្យយល់ច្រឡំ (MISLEADING)' :
-                    result.factCheckVerdict === 'MISINFORMATION' ? 'ព័ត៌មានមិនពិត (MISINFORMATION)' :
-                    result.factCheckVerdict === 'SUSPICIOUS_IMAGE' ? 'រូបភាពគួរឱ្យសង្ស័យ (SUSPICIOUS IMAGE)' :
-                    'មិនទាន់បញ្ជាក់ (UNVERIFIED)'
-                  ) : result.factCheckVerdict.replace('_', ' ')}
+                    result.coreVerdict === 'SAFE_AUTHENTIC' ? 'សុវត្ថិភាព / ត្រឹមត្រូវ' :
+                    result.coreVerdict === 'CAUTION_UNVERIFIED' ? 'ប្រយ័ត្ន / មិនទាន់ផ្ទៀងផ្ទាត់' :
+                    result.coreVerdict === 'MISLEADING_FAKENEWS' ? 'ព័ត៌មានមិនពិត' :
+                    result.coreVerdict === 'MANIPULATED_MEDIA' ? 'រូបភាពក្លែងក្លាយ' :
+                    result.coreVerdict === 'SCAM_PHISHING' ? 'ប្រយ័ត្នការបោកប្រាស់' :
+                    'មិនទាន់បញ្ជាក់'
+                  ) : result.coreVerdict.replace('_', ' ')}
                 </h2>
-                {result.factCheckSummary && (
+                {result.coreSummary && (
                   <p className="text-sm font-bold opacity-90 mt-1 drop-shadow-sm leading-snug" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit', lineHeight: khmer ? 1.6 : 1.4 }}>
-                    {result.factCheckSummary}
+                    {result.coreSummary}
                   </p>
                 )}
               </div>
