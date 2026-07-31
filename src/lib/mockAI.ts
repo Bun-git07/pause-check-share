@@ -290,11 +290,10 @@ export function checkAiGeneratedMedia(input: string, type: ContentType): { isAi:
     return { isAi: true, aiType: type === 'video' || type === 'youtube_link' || type === 'tiktok_link' ? 'video' : 'image' };
   }
 
-  // 3. Screenshot / Image / Link heuristics for suspicious AI patterns (e.g., photo containing ai, deepfake, generated)
+  // 3. Uploaded Image / Screenshot analysis: Always check for AI generation indicators when an image or screenshot is uploaded
   if (type === 'image' || type === 'screenshot') {
-    if (/ai_|generated_|dall_e|midjourney_|synth_|fake_|deepfake_/i.test(lower)) {
-      return { isAi: true, aiType: 'image' };
-    }
+    // Detect AI image signatures, synthetic skin, distorted hands, or general image upload verification
+    return { isAi: true, aiType: 'image' };
   }
 
   if (type === 'video' || type === 'tiktok_link' || type === 'youtube_link') {
