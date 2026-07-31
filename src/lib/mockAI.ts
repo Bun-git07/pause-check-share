@@ -269,48 +269,87 @@ const ALL_RECOMMENDATIONS: Recommendation[] = [
 ];
 
 // ---- Mock Analysis Logic ----
+
+function checkExecutableFile(input: string): boolean {
+  const lower = input.toLowerCase();
+
+  // 1. Disguised extensions like photo.jpg.exe or invoice.pdf.exe
+  if (/\.(pdf|jpg|jpeg|png|docx|xlsx|pptx|mp4|zip)\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg)(\b|\s|$)/i.test(lower)) {
+    return true;
+  }
+
+  // 2. Explicit executable filenames or attachments (e.g. setup.exe, app.apk, malware.scr)
+  if (/\b[a-z0-9_-]+\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg)\b/i.test(lower)) {
+    return true;
+  }
+
+  // 3. Clean web domain URLs (e.g. tiktok.com, youtube.com, facebook.com) so .com in domain hostnames doesn't trigger .com executable check
+  const urlHostnameRegex = /https?:\/\/[^\s]+|\b[a-z0-9-]+\.(com|net|org|gov|edu|io|co|me|kh|link)(\/[^\s]*)?/gi;
+  const cleanedText = lower.replace(urlHostnameRegex, (urlMatch) => {
+    // Keep URL match if the URL path explicitly ends with an executable file (e.g. http://site.com/file.exe)
+    if (/\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg)(\b|\?|$)/i.test(urlMatch)) {
+      return urlMatch;
+    }
+    return ' '; // Strip standard web domain names like tiktok.com/video
+  });
+
+  return /\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg)(\b|\s|$)/i.test(cleanedText);
+}
+
 function detectWarnings(input: string, type: ContentType): WarningSign[] {
   const lower = input.toLowerCase();
   const selected: WarningSign[] = [];
 
-  // HIGHEST PRIORITY: Executable file extension detection
-  const execRegex = /\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg)(\b|\s|$)/i;
-  const isDisguisedExec = /\.(pdf|jpg|jpeg|png|docx|xlsx|pptx|mp4|zip)\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg)/i.test(lower);
-  if (execRegex.test(lower) || isDisguisedExec) {
-    selected.push(ALL_WARNING_SIGNS[0]); // Executable warning at top
+  // 1. HIGHEST PRIORITY: Executable file extension detection
+  if (checkExecutableFile(input)) {
+    selected.push(ALL_WARNING_SIGNS[0]); // Executable file warning sign at top
   }
 
-  if (type === 'image' || type === 'screenshot') selected.push(ALL_WARNING_SIGNS[5]);
-  if (type === 'video') selected.push(ALL_WARNING_SIGNS[6]);
-  if (/money|bank|dollar|transfer|prize|lottery|win|reward|free/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[3], ALL_WARNING_SIGNS[9]);
+  // 2. Scam / Money / Urgency keywords
+  if (/money|bank|dollar|transfer|prize|lottery|win|reward|free gift|giveaway/i.test(lower)) {
+    selected.push(ALL_WARNING_SIGNS[3], ALL_WARNING_SIGNS[9]); // money_request, too_good
   }
-  if (/urgent|immediately|act now|limited time|deadline/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[10]);
+  if (/urgent|immediately|act now|limited time|deadline|suspended/i.test(lower)) {
+    selected.push(ALL_WARNING_SIGNS[10]); // urgency
   }
-  if (/shocking|unbelievable|you won't believe|breaking|secret/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[2], ALL_WARNING_SIGNS[7]);
+  if (/shocking|unbelievable|you won't believe|breaking news|secret revealed/i.test(lower)) {
+    selected.push(ALL_WARNING_SIGNS[2], ALL_WARNING_SIGNS[7]); // emotional_language, clickbait
   }
-  if (/government|ministry|official|police|nbc|cambodia/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[4]);
-  }
-  if (type === 'facebook_link' || type === 'tiktok_link' || type === 'youtube_link') {
-    selected.push(ALL_WARNING_SIGNS[1], ALL_WARNING_SIGNS[8]);
+  if (/government|ministry|official notice|police|nbc|bank account/i.test(lower)) {
+    selected.push(ALL_WARNING_SIGNS[4]); // fake_logo
   }
   if (/health|cure|treatment|medicine|doctor|covid/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[8]);
+    selected.push(ALL_WARNING_SIGNS[8]); // missing_context
   }
-  if (selected.length === 0) {
-    selected.push(ALL_WARNING_SIGNS[1]);
+
+  // 3. Media specific checks
+  if ((type === 'image' || type === 'screenshot') && selected.length === 0 && /ai|fake|edited|generated/i.test(lower)) {
+    selected.push(ALL_WARNING_SIGNS[5]); // ai_artifacts
   }
+  if (type === 'video' && selected.length === 0 && /edit|deepfake|fake/i.test(lower)) {
+    selected.push(ALL_WARNING_SIGNS[6]); // edited_video
+  }
+
+  // 4. Social Links (TikTok, YouTube, Facebook): Only flag if domain is not official
+  if (type === 'facebook_link' || type === 'tiktok_link' || type === 'youtube_link') {
+    const isOfficialDomain = /https?:\/\/(www\.|vt\.)?(tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch|fb\.com)\//i.test(input) ||
+      /\b(tiktok\.com|youtube\.com|youtu\.be|facebook\.com|fb\.watch)\b/i.test(input);
+
+    if (!isOfficialDomain && selected.length === 0) {
+      selected.push(ALL_WARNING_SIGNS[1]); // no_source for unknown/suspicious domain
+    }
+  }
+
   return selected.slice(0, 4);
 }
 
 function classifyContent(input: string, type: ContentType, warnings: WarningSign[]): ClassificationLevel {
+  const hasExecutable = warnings.some(w => w.id === 'executable_file');
   const highSeverityCount = warnings.filter(w => w.severity === 'high').length;
   const lower = input.toLowerCase();
 
   if (
+    hasExecutable ||
     highSeverityCount >= 2 ||
     /scam|fraud|fake|phishing|hack|steal|transfer money/i.test(lower)
   ) {
@@ -319,7 +358,6 @@ function classifyContent(input: string, type: ContentType, warnings: WarningSign
   if (
     highSeverityCount === 1 ||
     warnings.length >= 2 ||
-    type === 'video' ||
     /urgent|prize|win|lottery/i.test(lower)
   ) {
     return 'needs_verification';
@@ -341,23 +379,23 @@ function buildRecommendations(classification: ClassificationLevel, warnings: War
 }
 
 function buildExplanation(classification: ClassificationLevel, warnings: WarningSign[], type: ContentType): string {
+  if (warnings.length === 0 || classification === 'reliable') {
+    return `This ${type.replace('_', ' ')} link appears to be from a standard platform and did not trigger major security red flags. Always maintain normal caution when consuming online content.`;
+  }
   if (classification === 'potentially_misleading') {
-    return `This ${type.replace('_', ' ')} shows multiple strong warning signs. The combination of ${warnings.map(w => w.title.toLowerCase()).join(', ')} suggests this content may be designed to mislead or deceive. However, our AI cannot determine with 100% certainty — please verify from official sources before drawing conclusions.`;
+    return `This ${type.replace('_', ' ')} shows critical warning signs (${warnings.map(w => w.title).join(', ')}). Extreme caution is required before opening or sharing.`;
   }
-  if (classification === 'needs_verification') {
-    return `This content has some characteristics worth investigating. We found ${warnings.length} warning sign(s): ${warnings.map(w => w.title).join(', ')}. This does not mean it is definitely false — more verification is recommended before sharing.`;
-  }
-  return `This content did not trigger major warning signs in our analysis. It appears relatively safe, but remember that no AI tool is perfect. Always check official sources for important topics like health, finance, and government news.`;
+  return `This content has some characteristics worth checking (${warnings.map(w => w.title).join(', ')}). We recommend verifying official sources before sharing.`;
 }
 
 function buildExplanationKm(classification: ClassificationLevel, warnings: WarningSign[]): string {
+  if (warnings.length === 0 || classification === 'reliable') {
+    return `មាតិកានេះហាក់ដូចជាមានសុវត្ថិភាព និងជាប្រភពផ្លូវការ។ មិនមានសញ្ញាព្រមានធំៗត្រូវបានរកឃើញទេ។`;
+  }
   if (classification === 'potentially_misleading') {
-    return `មាតិកានេះបង្ហាញសញ្ញាព្រមានច្រើន។ ការរួមបញ្ចូល ${warnings.map(w => w.titleKm).join('، ')} ចង្អុលបង្ហាញថាមាតិកានេះអាចត្រូវបានរចនាដើម្បីបំភ្លើស។ AI របស់យើងមិនអាចកំណត់បាន 100% — សូមផ្ទៀងផ្ទាត់ពីប្រភពផ្លូវការ។`;
+    return `មាតិកានេះបង្ហាញសញ្ញាព្រមានគ្រោះថ្នាក់ (${warnings.map(w => w.titleKm).join('، ')}). ត្រូវប្រុងប្រយ័ត្នខ្ពស់មុនពេលបើក ឬ ចែករំលែក។`;
   }
-  if (classification === 'needs_verification') {
-    return `មាតិកានេះមានលក្ខណៈដែលត្រូវស៊ើបអង្កេតបន្ថែម។ យើងរកឃើញ ${warnings.length} សញ្ញាព្រមាន។ នេះមិនមានន័យថាវាក្លែងក្លាយ — ការផ្ទៀងផ្ទាត់បន្ថែមត្រូវបានណែនាំ។`;
-  }
-  return `មាតិកានេះមិនបង្ក trigger សញ្ញាព្រមានធំៗ។ វាហាក់ដូចជាសុវត្ថិភាព តែ AI គ្មានភាពល្អឥតខ្ចោះ។ ពិនិត្យប្រភពផ្លូវការជានិច្ចសម្រាប់ប្រធានបទដូចជា សុខភាព ហិរញ្ញវត្ថុ និង ព័ត៌មានរដ្ឋាភិបាល។`;
+  return `មាតិកានេះមានលក្ខណៈខ្លះដែលគួរពិនិត្យបន្ថែម (${warnings.map(w => w.titleKm).join('، ')}). យើងណែនាំអោយផ្ទៀងផ្ទាត់ពីប្រភពផ្លូវការមុនពេលចែករំលែក។`;
 }
 
 // ---- Main Export ----
@@ -366,14 +404,14 @@ export async function analyzeContent(
   type: ContentType
 ): Promise<AnalysisResult> {
   // Simulate AI processing delay
-  await new Promise(resolve => setTimeout(resolve, 2500 + Math.random() * 1000));
+  await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 800));
 
   const warnings = detectWarnings(input, type);
   const classification = classifyContent(input, type, warnings);
   const recommendations = buildRecommendations(classification, warnings);
-  const confidence = classification === 'reliable' ? 72 + Math.floor(Math.random() * 15) :
-    classification === 'needs_verification' ? 55 + Math.floor(Math.random() * 20) :
-      75 + Math.floor(Math.random() * 15);
+  const confidence = classification === 'reliable' ? 88 + Math.floor(Math.random() * 8) :
+    classification === 'needs_verification' ? 60 + Math.floor(Math.random() * 15) :
+      80 + Math.floor(Math.random() * 15);
 
   return {
     id: `analysis_${Date.now()}`,
