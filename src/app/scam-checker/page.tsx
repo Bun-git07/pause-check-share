@@ -36,6 +36,15 @@ export default function ScamCheckerPage() {
     { label: lang === 'km' ? 'ទំនាក់ទំនង' : 'Romance', text: 'Hi beautiful, I am an American doctor working in Cambodia. I have fallen in love with you. Can you help me with an urgent money transfer?' },
   ];
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const analyze = async () => {
     const input = mode === 'text' ? text : (file?.name ?? '');
     const type: ContentType = mode === 'upload' ? 'screenshot' : 'sms';
@@ -43,7 +52,13 @@ export default function ScamCheckerPage() {
     setAnalyzing(true);
     setResult(null);
     try {
-      const r = await analyzeContent(input, type);
+      let fileData: string | undefined = undefined;
+      let fileMimeType: string | undefined = undefined;
+      if (mode === 'upload' && file) {
+        fileData = await fileToBase64(file);
+        fileMimeType = file.type;
+      }
+      const r = await analyzeContent(input, type, fileData, fileMimeType);
       setResult(r);
       addToHistory(r, type, input.slice(0, 80));
     } finally {
