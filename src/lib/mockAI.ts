@@ -314,6 +314,39 @@ export function checkExecutableFile(input: string): { isExec: boolean; fileName?
   return { isExec: false };
 }
 
+export function checkAiGeneratedMedia(input: string, type: ContentType): { isAi: boolean; aiType?: 'image' | 'video' | 'deepfake' } {
+  const lower = input.toLowerCase().trim();
+
+  // 1. Explicit AI keywords in text, filename, or link
+  const isDeepfake = /deepfake|voice clone|face swap|ai voice|ai avatar|fake video|lip sync|synthesized speech/i.test(lower);
+  const isAiVideo = /ai video|sora|runway|pika|heygen|synthesia|animated photo|ai generated video/i.test(lower);
+  const isAiImage = /ai image|midjourney|dall-e|dalle|stable diffusion|flux|civitai|bing creator|ai photo|generated image|ai portrait|ai avatar|prompt|ai art/i.test(lower);
+
+  if (isDeepfake) return { isAi: true, aiType: 'deepfake' };
+  if (isAiVideo) return { isAi: true, aiType: 'video' };
+  if (isAiImage) return { isAi: true, aiType: 'image' };
+
+  // 2. Links to AI generation platforms or AI social tags
+  if (/midjourney\.com|civitai\.com|runwayml\.com|pika\.art|sora|heygen\.com|huggingface\.co|craiyon\.com/i.test(lower)) {
+    return { isAi: true, aiType: type === 'video' || type === 'youtube_link' || type === 'tiktok_link' ? 'video' : 'image' };
+  }
+
+  // 3. Screenshot / Image / Link heuristics for suspicious AI patterns (e.g., photo containing ai, deepfake, generated)
+  if (type === 'image' || type === 'screenshot') {
+    if (/ai_|generated_|dall_e|midjourney_|synth_|fake_|deepfake_/i.test(lower)) {
+      return { isAi: true, aiType: 'image' };
+    }
+  }
+
+  if (type === 'video' || type === 'tiktok_link' || type === 'youtube_link') {
+    if (/deepfake|ai_voice|face_swap|sora|ai_video/i.test(lower)) {
+      return { isAi: true, aiType: 'deepfake' };
+    }
+  }
+
+  return { isAi: false };
+}
+
 function detectWarnings(input: string, type: ContentType): WarningSign[] {
   const lower = input.toLowerCase();
   const selected: WarningSign[] = [];
@@ -324,7 +357,17 @@ function detectWarnings(input: string, type: ContentType): WarningSign[] {
     selected.push(ALL_WARNING_SIGNS[0]); // Executable file warning sign at top
   }
 
-  // 2. Scam / Money / Urgency keywords
+  // 2. SECOND HIGHEST PRIORITY: AI-Generated Media & Deepfake Detection
+  const aiResult = checkAiGeneratedMedia(input, type);
+  if (aiResult.isAi) {
+    if (aiResult.aiType === 'deepfake') {
+      selected.push(ALL_WARNING_SIGNS[6]); // edited_video / deepfake
+    } else {
+      selected.push(ALL_WARNING_SIGNS[5]); // ai_artifacts
+    }
+  }
+
+  // 3. Scam / Money / Urgency keywords
   if (/money|bank|dollar|transfer|prize|lottery|win|reward|free gift|giveaway/i.test(lower)) {
     selected.push(ALL_WARNING_SIGNS[3], ALL_WARNING_SIGNS[9]); // money_request, too_good
   }
@@ -339,16 +382,6 @@ function detectWarnings(input: string, type: ContentType): WarningSign[] {
   }
   if (/health|cure|treatment|medicine|doctor|covid/i.test(lower)) {
     selected.push(ALL_WARNING_SIGNS[8]); // missing_context
-  }
-
-  // 3. Media specific checks: images/screenshots with Telegram or executable indicators
-  if ((type === 'image' || type === 'screenshot') && !execResult.isExec) {
-    if (/ai|fake|edited|generated/i.test(lower)) {
-      selected.push(ALL_WARNING_SIGNS[5]); // ai_artifacts
-    }
-  }
-  if (type === 'video' && selected.length === 0 && /edit|deepfake|fake/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[6]); // edited_video
   }
 
   // 4. Social Links (TikTok, YouTube, Facebook): Only flag if domain is not official
@@ -366,11 +399,13 @@ function detectWarnings(input: string, type: ContentType): WarningSign[] {
 
 function classifyContent(input: string, type: ContentType, warnings: WarningSign[]): ClassificationLevel {
   const hasExecutable = warnings.some(w => w.id === 'executable_file');
+  const hasAiMedia = warnings.some(w => w.id === 'ai_artifacts' || w.id === 'edited_video');
   const highSeverityCount = warnings.filter(w => w.severity === 'high').length;
   const lower = input.toLowerCase();
 
   if (
     hasExecutable ||
+    hasAiMedia ||
     highSeverityCount >= 2 ||
     /scam|fraud|fake|phishing|hack|steal|transfer money/i.test(lower)
   ) {
@@ -387,6 +422,10 @@ function classifyContent(input: string, type: ContentType, warnings: WarningSign
 }
 
 function buildRecommendations(classification: ClassificationLevel, warnings: WarningSign[]): Recommendation[] {
+  const hasAiMedia = warnings.some(w => w.id === 'ai_artifacts' || w.id === 'edited_video');
+  if (hasAiMedia) {
+    return [ALL_RECOMMENDATIONS[0], ALL_RECOMMENDATIONS[4], ALL_RECOMMENDATIONS[1], ALL_RECOMMENDATIONS[6]];
+  }
   if (classification === 'potentially_misleading') {
     return [ALL_RECOMMENDATIONS[0], ALL_RECOMMENDATIONS[1], ALL_RECOMMENDATIONS[6], ALL_RECOMMENDATIONS[7]];
   }
@@ -404,6 +443,10 @@ function buildExplanation(classification: ClassificationLevel, warnings: Warning
   if (hasExecutable) {
     return `🚨 MASSIVE RED FLAG: An executable file (.exe / .apk / .scr / .bat) was detected in this content. Cybercriminals use executable attachments to install malware, ransomware, and remote control tools on your device. Do NOT open or download this file.`;
   }
+  const hasAi = warnings.some(w => w.id === 'ai_artifacts' || w.id === 'edited_video');
+  if (hasAi) {
+    return `🤖 AI MEDIA / DEEPFAKE DETECTED: This ${type.replace('_', ' ')} contains strong indicators of AI generation or manipulation (synthetic face/voice, altered audio, or AI image artifacts). Verify with official news outlets before sharing.`;
+  }
   if (warnings.length === 0 || classification === 'reliable') {
     return `This ${type.replace('_', ' ')} link appears to be from a standard platform and did not trigger major security red flags. Always maintain normal caution when consuming online content.`;
   }
@@ -417,6 +460,10 @@ function buildExplanationKm(classification: ClassificationLevel, warnings: Warni
   const hasExecutable = warnings.some(w => w.id === 'executable_file');
   if (hasExecutable) {
     return `🚨 សញ្ញាព្រមានអាសន្នធំ៖ រកឃើញឯកសារ Executable (.exe / .apk / .scr / .bat) ក្នុងមាតិកានេះ។ ជនខិលខូចប្រើឯកសារប្រភេទនេះដើម្បីដំឡើងមេរោគ Malware, Ransomware និងលួចគ្រប់គ្រងឧបករណ៍របស់អ្នក។ ដាច់ខាតកុំបើក ឬ ទាញយកឯកសារនេះ!`;
+  }
+  const hasAi = warnings.some(w => w.id === 'ai_artifacts' || w.id === 'edited_video');
+  if (hasAi) {
+    return `🤖 រកឃើញរូបភាព/វីដេអូបង្កើតដោយ AI ឬ DEEPFAKE៖ មាតិកានេះមានសញ្ញានៃការបង្កើតដោយ AI ឬ កែសម្រួលសំឡេង/ទម្រង់មុខក្លែងក្លាយ។ សូមផ្ទៀងផ្ទាត់ជាមួយប្រភពព័ត៌មានផ្លូវការមុនពេលចែករំលែក!`;
   }
   if (warnings.length === 0 || classification === 'reliable') {
     return `មាតិកានេះហាក់ដូចជាមានសុវត្ថិភាព និងជាប្រភពផ្លូវការ។ មិនមានសញ្ញាព្រមានធំៗត្រូវបានរកឃើញទេ។`;
@@ -436,10 +483,11 @@ export async function analyzeContent(
   await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 800));
 
   const execCheck = checkExecutableFile(input);
+  const aiCheck = checkAiGeneratedMedia(input, type);
   const warnings = detectWarnings(input, type);
   const classification = classifyContent(input, type, warnings);
   const recommendations = buildRecommendations(classification, warnings);
-  const confidence = execCheck.isExec ? 94 : (classification === 'reliable' ? 88 + Math.floor(Math.random() * 8) :
+  const confidence = execCheck.isExec ? 94 : aiCheck.isAi ? 91 : (classification === 'reliable' ? 88 + Math.floor(Math.random() * 8) :
     classification === 'needs_verification' ? 60 + Math.floor(Math.random() * 15) :
       85 + Math.floor(Math.random() * 10));
 
@@ -455,5 +503,7 @@ export async function analyzeContent(
     timestamp: new Date(),
     inputPreview: input.slice(0, 120),
     detectedFileName: execCheck.fileName || (execCheck.isExec ? 'photo_2025-07-16_16-30-11.exe' : undefined),
+    isAiGenerated: aiCheck.isAi,
+    aiDetectionType: aiCheck.aiType,
   };
 }

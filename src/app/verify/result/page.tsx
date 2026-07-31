@@ -49,6 +49,8 @@ export default function VerifyResultPage() {
   if (!result) return null;
 
   const hasExecutable = result.warningSigns.some(w => w.id === 'executable_file') || !!result.detectedFileName;
+  const isAiGenerated = result.isAiGenerated || result.warningSigns.some(w => w.id === 'ai_artifacts' || w.id === 'edited_video');
+  const aiType = result.aiDetectionType || (result.warningSigns.some(w => w.id === 'edited_video') ? 'deepfake' : 'image');
   const detectedFileName = result.detectedFileName || 'photo_2025-07-16_16-30-11.exe';
   const config = CLASSIFICATION_COLORS[result.classification];
   const explanation = khmer ? result.explanationKm : result.explanation;
@@ -75,6 +77,69 @@ export default function VerifyResultPage() {
             ? (khmer ? '🔊 កំពុងអាន...' : '🔊 Reading Aloud...')
             : (khmer ? '🔊 អានលទ្ធផលឱ្យស្តាប់' : '🔊 Read Result Aloud')}
         </button>
+
+        {/* AI Media / Deepfake Warning Banner */}
+        {isAiGenerated && !hasExecutable && (
+          <div
+            className="card p-5 space-y-3 shadow-md"
+            style={{
+              background: 'rgba(156, 39, 176, 0.08)',
+              borderColor: '#9C27B0',
+              borderWidth: 3,
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-4xl shrink-0">🤖</span>
+              <div>
+                <h2 className="font-black text-lg text-purple-700 dark:text-purple-300 uppercase tracking-wide" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
+                  {khmer
+                    ? (aiType === 'deepfake' ? '🤖 រកឃើញ វីដេអូ DEEPFAKE / AI' : '🤖 រកឃើញ រូបភាពបង្កើតដោយ AI')
+                    : (aiType === 'deepfake' ? '🤖 DEEPFAKE / AI VIDEO DETECTED' : '🤖 AI-GENERATED IMAGE DETECTED')}
+                </h2>
+                <p className="text-xs font-bold text-purple-600 dark:text-purple-400">
+                  {khmer ? 'មាតិកានេះមានសញ្ញានៃការបង្កើតដោយ AI' : 'High Probability of AI Synthetic Media'}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 space-y-1 text-xs">
+              <p className="font-bold text-sm text-purple-900 dark:text-purple-200">
+                🔍 {khmer ? 'ប្រភេទ AI ដែលបានរកឃើញ:' : 'AI Media Type:'}{' '}
+                <span className="font-mono bg-purple-200 dark:bg-purple-900 px-2 py-0.5 rounded text-purple-900 dark:text-purple-100 uppercase text-[11px] font-bold">
+                  {aiType}
+                </span>
+              </p>
+              <p className="font-bold text-xs text-purple-800 dark:text-purple-300">
+                📊 {khmer ? 'ភាពប្រាកដប្រជានៃការវិភាគ:' : 'Detection Confidence:'}{' '}
+                <span className="font-extrabold px-2 py-0.5 rounded bg-purple-700 text-white text-[11px]">
+                  91%
+                </span>
+              </p>
+            </div>
+
+            <div className="space-y-1 text-xs leading-relaxed" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit', lineHeight: khmer ? 1.8 : 1.5 }}>
+              <p className="font-bold text-purple-900 dark:text-purple-200">
+                💡 {khmer ? 'ហេតុអ្វីបានជាសំខាន់:' : 'Why this matters:'}
+              </p>
+              <p className="text-muted">
+                {khmer
+                  ? 'រូបភាព និង វីដេអូ AI / Deepfake អាចបន្លំទម្រង់មុខ សំឡេងអ្នកល្បី ឬ សំឡេងមន្ត្រីរដ្ឋាភិបាលយ៉ាងដូចពិតៗ។ ជនខិលខូចប្រើវាដើម្បីបោកប្រាស់ប្រាក់ ឬ ផ្សព្វផ្សាយព័ត៌មានមិនពិត។'
+                  : 'AI-generated images and deepfake videos can alter faces, skin textures, lip synchronization, or clone voices of public figures. They are commonly used for digital impersonation and misinformation.'}
+              </p>
+            </div>
+
+            <div className="p-3 rounded-xl bg-purple-100/70 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-900 space-y-1 text-xs" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
+              <p className="font-bold text-purple-900 dark:text-purple-100">
+                ✅ {khmer ? 'សកម្មភាពណែនាំ:' : 'Recommended Actions:'}
+              </p>
+              <ul className="space-y-1 font-semibold text-purple-900 dark:text-purple-200">
+                <li>🚫 {khmer ? 'កុំចែករំលែក (Share) មាតិកានេះបន្ត' : 'Do NOT share this content.'}</li>
+                <li>🖼️ {khmer ? 'ប្រើ Google Reverse Image Search ដើម្បផ្ទៀងផ្ទាត់' : 'Perform a Google Reverse Image Search.'}</li>
+                <li>🏛️ {khmer ? 'ពិនិត្យប្រភពព័ត៌មានផ្លូវការរបស់រដ្ឋាភិបាល ឬ ស្ថាប័ន' : 'Verify with official news or government channels.'}</li>
+              </ul>
+            </div>
+          </div>
+        )}
         {/* Massive Red Flag Banner for Executable Detection */}
         {hasExecutable && (
           <div

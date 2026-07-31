@@ -43,6 +43,8 @@ export interface AnalysisResult {
   timestamp: Date;
   inputPreview?: string; // URL or text snippet
   detectedFileName?: string; // Executable or target file name
+  isAiGenerated?: boolean;
+  aiDetectionType?: 'image' | 'video' | 'deepfake' | 'audio';
 }
 
 export interface Recommendation {
