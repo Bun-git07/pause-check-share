@@ -102,9 +102,22 @@ const translations: Record<TranslationKey, { en: string; km: string }> = {
   'common.error': { en: 'Something went wrong', km: 'មានបញ្ហាកើតឡើង' },
   'common.retry': { en: 'Try Again', km: 'ព្យាយាមម្ដងទៀត' },
   'common.cancel': { en: 'Cancel', km: 'បោះបង់' },
-  'common.done': { en: 'Done', km: 'រួចរាល់' },
+  'common.done': { en: 'Got It!', km: 'យល់ហើយ!' },
   'common.today': { en: 'Today', km: 'ថ្ងៃនេះ' },
   'common.yesterday': { en: 'Yesterday', km: 'ម្សិលមិញ' },
+
+  // Guide Modal
+  'guide.title': { en: 'Quick Help Guide', km: 'ការណែនាំរហ័ស' },
+  'guide.tab_link': { en: '🔗 Copy Link', km: '🔗 ចម្លងតំណ' },
+  'guide.tab_screenshot': { en: '📸 Take Screenshot', km: '📸 ថតរូបអេក្រង់' },
+  'guide.ios_link_s1': { en: '🔗 Tap and hold the link until a menu pops up.', km: '🔗 ចុចឱ្យជាប់លើតំណរហូតដល់ផ្ទាំងម៉ឺនុយបង្ហាញឡើង។' },
+  'guide.ios_link_s2': { en: '✅ Tap "Copy Link" — then paste it into this app!', km: '✅ ចុចយក "ចម្លងតំណ" (Copy Link) — រួចបិទភ្ជាប់ក្នុងកម្មវិធីនេះ!' },
+  'guide.android_link_s1': { en: '🔗 Tap and hold the link until a menu appears.', km: '🔗 ចុចឱ្យជាប់លើតំណរហូតដល់ផ្ទាំងម៉ឺនុយបង្ហាញឡើង។' },
+  'guide.android_link_s2': { en: '✅ Tap "Copy link" — then paste it into this app!', km: '✅ ចុចយក "ចម្លងតំណ" (Copy Link) — រួចបិទភ្ជាប់ក្នុងកម្មវិធីនេះ!' },
+  'guide.ios_ss_s1': { en: '⚡ Press Side button + Volume Up at the same time.', km: '⚡ ចុចប៊ូតុងចំហៀង + ប៊ូតុងបង្កើនសំឡេងក្នុងពេលតែមួយ។' },
+  'guide.ios_ss_s2': { en: '📲 Tap the preview screenshot to save it.', km: '📲 ចុចលើរូបភាពតូចខាងក្រោមដើម្បីរក្សាទុក។' },
+  'guide.android_ss_s1': { en: '⚡ Press Power + Volume Down buttons at the same time.', km: '⚡ ចុចប៊ូតុងបិទបើក + ប៊ូតុងបន្ថយសំឡេងក្នុងពេលតែមួយ។' },
+  'guide.android_ss_s2': { en: '📲 Find your screenshot in your phone gallery.', km: '📲 ស្វែងរករូបភាព Screenshot របស់អ្នកក្នុងអាល់ប៊ុមរូបភាព។' },
 };
 
 export function t(key: TranslationKey, lang: Language): string {

@@ -5,6 +5,7 @@ import { Upload, Link as LinkIcon, MessageSquare, Image, Video, FileText } from 
 import TopBar from '@/components/layout/TopBar';
 import BottomNav from '@/components/layout/BottomNav';
 import { AnalyzingOverlay } from '@/components/ui/LoadingSpinner';
+import GuideModal from '@/components/ui/GuideModal';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useHistory } from '@/contexts/HistoryContext';
 import { t } from '@/lib/i18n';
@@ -33,6 +34,8 @@ export default function VerifyPage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string>('');
   const [analyzing, setAnalyzing] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideDefaultTab, setGuideDefaultTab] = useState<'link' | 'screenshot'>('link');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,13 +217,23 @@ export default function VerifyPage() {
           </div>
         )}
 
-        {/* Info card */}
-        <div className="card p-4 bg-[var(--color-primary-light)]" style={{ border: '1.5px solid var(--color-primary)' }}>
-          <p className="text-sm font-medium text-[var(--color-primary)]" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
+        {/* Info & Guide banner */}
+        <div className="flex items-center justify-between card p-4 bg-[var(--color-primary-light)]" style={{ border: '1.5px solid var(--color-primary)' }}>
+          <p className="text-sm font-medium text-[var(--color-primary)] flex-1 mr-2" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
             {lang === 'km'
               ? '🔒 AI របស់យើងនឹងមិននិយាយថាមាតិការ 100% ក្លែងក្លាយ។ វានឹងជួយអ្នករកឃើញសញ្ញាព្រមានប៉ុណ្ណោះ។'
               : '🔒 Our AI will never say content is 100% fake. It helps you spot warning signs only.'}
           </p>
+          <button
+            onClick={() => {
+              setGuideDefaultTab(tab === 'link' ? 'link' : 'screenshot');
+              setGuideOpen(true);
+            }}
+            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-[var(--color-primary)] text-white hover:opacity-90 shrink-0"
+            style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}
+          >
+            💡 {lang === 'km' ? 'របៀបប្រើ?' : 'How to?'}
+          </button>
         </div>
 
         {/* Analyze Button */}
@@ -232,6 +245,12 @@ export default function VerifyPage() {
           🔍 {t('verify.analyze_btn', lang)}
         </button>
       </div>
+
+      <GuideModal
+        isOpen={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        defaultTab={guideDefaultTab}
+      />
 
       <BottomNav />
     </div>

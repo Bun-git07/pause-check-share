@@ -5,6 +5,7 @@ import { Upload, MessageSquare } from 'lucide-react';
 import TopBar from '@/components/layout/TopBar';
 import BottomNav from '@/components/layout/BottomNav';
 import { AnalyzingOverlay } from '@/components/ui/LoadingSpinner';
+import GuideModal from '@/components/ui/GuideModal';
 import { useSettings } from '@/contexts/SettingsContext';
 import { t } from '@/lib/i18n';
 import { analyzeContent } from '@/lib/mockAI';
@@ -25,6 +26,8 @@ export default function ScamCheckerPage() {
   const [file, setFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideDefaultTab, setGuideDefaultTab] = useState<'link' | 'screenshot'>('screenshot');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const SCAM_EXAMPLES = [
@@ -54,16 +57,28 @@ export default function ScamCheckerPage() {
 
       <div className="page-content space-y-5">
         {/* Intro */}
-        <div className="card p-4 flex gap-3 items-start" style={{ background: 'var(--color-danger-light)', borderColor: 'var(--color-danger)', borderWidth: 1.5 }}>
-          <span className="text-3xl">🚨</span>
-          <div>
-            <p className="font-bold text-sm mb-1" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-              {t('scam.title', lang)}
-            </p>
-            <p className="text-xs text-muted" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-              {t('scam.subtitle', lang)}
-            </p>
+        <div className="card p-4 flex items-center justify-between gap-3" style={{ background: 'var(--color-danger-light)', borderColor: 'var(--color-danger)', borderWidth: 1.5 }}>
+          <div className="flex gap-3 items-start flex-1">
+            <span className="text-3xl">🚨</span>
+            <div>
+              <p className="font-bold text-sm mb-1" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
+                {t('scam.title', lang)}
+              </p>
+              <p className="text-xs text-muted" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
+                {t('scam.subtitle', lang)}
+              </p>
+            </div>
           </div>
+          <button
+            onClick={() => {
+              setGuideDefaultTab(mode === 'upload' ? 'screenshot' : 'link');
+              setGuideOpen(true);
+            }}
+            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-[var(--color-primary)] text-white hover:opacity-90 shrink-0 shadow-xs"
+            style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}
+          >
+            💡 {lang === 'km' ? 'របៀបប្រើ?' : 'How to?'}
+          </button>
         </div>
 
         {/* Mode switcher */}
@@ -205,6 +220,12 @@ export default function ScamCheckerPage() {
           </div>
         )}
       </div>
+
+      <GuideModal
+        isOpen={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        defaultTab={guideDefaultTab}
+      />
 
       <BottomNav />
     </div>
