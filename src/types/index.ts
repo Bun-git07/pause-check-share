@@ -42,6 +42,7 @@ export interface AnalysisResult {
   recommendations: Recommendation[];
   timestamp: Date;
   inputPreview?: string; // URL or text snippet
+  detectedFileName?: string; // Executable or target file name
 }
 
 export interface Recommendation {

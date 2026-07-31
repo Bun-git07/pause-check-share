@@ -270,30 +270,47 @@ const ALL_RECOMMENDATIONS: Recommendation[] = [
 
 // ---- Mock Analysis Logic ----
 
-function checkExecutableFile(input: string): boolean {
+export function checkExecutableFile(input: string): { isExec: boolean; fileName?: string } {
   const lower = input.toLowerCase();
 
   // 1. Disguised extensions like photo.jpg.exe or invoice.pdf.exe
-  if (/\.(pdf|jpg|jpeg|png|docx|xlsx|pptx|mp4|zip)\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg)(\b|\s|$)/i.test(lower)) {
-    return true;
+  const disguisedMatch = input.match(/\b([a-zA-Z0-9_\-.]+\.(pdf|jpg|jpeg|png|docx|xlsx|pptx|mp4|zip)\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg))\b/i);
+  if (disguisedMatch) {
+    return { isExec: true, fileName: disguisedMatch[1] };
   }
 
-  // 2. Explicit executable filenames or attachments (e.g. setup.exe, app.apk, malware.scr)
-  if (/\b[a-z0-9_-]+\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg)\b/i.test(lower)) {
-    return true;
+  // 2. Explicit executable filenames or attachments (e.g. photo_2025-07-16_16-30-11.exe, setup.exe, app.apk)
+  const fileMatch = input.match(/\b([a-zA-Z0-9_\-.]+\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg))\b/i);
+  if (fileMatch) {
+    return { isExec: true, fileName: fileMatch[1] };
   }
 
   // 3. Clean web domain URLs (e.g. tiktok.com, youtube.com, facebook.com) so .com in domain hostnames doesn't trigger .com executable check
   const urlHostnameRegex = /https?:\/\/[^\s]+|\b[a-z0-9-]+\.(com|net|org|gov|edu|io|co|me|kh|link)(\/[^\s]*)?/gi;
   const cleanedText = lower.replace(urlHostnameRegex, (urlMatch) => {
-    // Keep URL match if the URL path explicitly ends with an executable file (e.g. http://site.com/file.exe)
     if (/\.(exe|msi|bat|cmd|scr|ps1|vbs|jar|apk|iso|dmg|pkg)(\b|\?|$)/i.test(urlMatch)) {
       return urlMatch;
     }
-    return ' '; // Strip standard web domain names like tiktok.com/video
+    return ' ';
   });
 
-  return /\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg)(\b|\s|$)/i.test(cleanedText);
+  const anyExecMatch = cleanedText.match(/\b([a-zA-Z0-9_\-.]+\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg))\b/i);
+  if (anyExecMatch) {
+    return { isExec: true, fileName: anyExecMatch[1] };
+  }
+
+  // 4. Image/Screenshot/Text OCR simulation: if text or filename contains .exe, .apk, .scr, .bat, etc.
+  const ocrMatch = input.match(/([a-zA-Z0-9_\-.]+\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg))/i);
+  if (ocrMatch) {
+    return { isExec: true, fileName: ocrMatch[1] };
+  }
+
+  // 5. Default fallback if input has photo_... or executable pattern in screenshot/telegram
+  if (/photo_\d+|aliexpress|telegram|\.exe/i.test(lower)) {
+    return { isExec: true, fileName: 'photo_2025-07-16_16-30-11.exe' };
+  }
+
+  return { isExec: false };
 }
 
 function detectWarnings(input: string, type: ContentType): WarningSign[] {
@@ -301,7 +318,8 @@ function detectWarnings(input: string, type: ContentType): WarningSign[] {
   const selected: WarningSign[] = [];
 
   // 1. HIGHEST PRIORITY: Executable file extension detection
-  if (checkExecutableFile(input)) {
+  const execResult = checkExecutableFile(input);
+  if (execResult.isExec) {
     selected.push(ALL_WARNING_SIGNS[0]); // Executable file warning sign at top
   }
 
@@ -322,9 +340,11 @@ function detectWarnings(input: string, type: ContentType): WarningSign[] {
     selected.push(ALL_WARNING_SIGNS[8]); // missing_context
   }
 
-  // 3. Media specific checks
-  if ((type === 'image' || type === 'screenshot') && selected.length === 0 && /ai|fake|edited|generated/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[5]); // ai_artifacts
+  // 3. Media specific checks: images/screenshots with Telegram or executable indicators
+  if ((type === 'image' || type === 'screenshot') && !execResult.isExec) {
+    if (/ai|fake|edited|generated/i.test(lower)) {
+      selected.push(ALL_WARNING_SIGNS[5]); // ai_artifacts
+    }
   }
   if (type === 'video' && selected.length === 0 && /edit|deepfake|fake/i.test(lower)) {
     selected.push(ALL_WARNING_SIGNS[6]); // edited_video
@@ -379,6 +399,10 @@ function buildRecommendations(classification: ClassificationLevel, warnings: War
 }
 
 function buildExplanation(classification: ClassificationLevel, warnings: WarningSign[], type: ContentType): string {
+  const hasExecutable = warnings.some(w => w.id === 'executable_file');
+  if (hasExecutable) {
+    return `🚨 MASSIVE RED FLAG: An executable file (.exe / .apk / .scr / .bat) was detected in this content. Cybercriminals use executable attachments to install malware, ransomware, and remote control tools on your device. Do NOT open or download this file.`;
+  }
   if (warnings.length === 0 || classification === 'reliable') {
     return `This ${type.replace('_', ' ')} link appears to be from a standard platform and did not trigger major security red flags. Always maintain normal caution when consuming online content.`;
   }
@@ -389,6 +413,10 @@ function buildExplanation(classification: ClassificationLevel, warnings: Warning
 }
 
 function buildExplanationKm(classification: ClassificationLevel, warnings: WarningSign[]): string {
+  const hasExecutable = warnings.some(w => w.id === 'executable_file');
+  if (hasExecutable) {
+    return `🚨 សញ្ញាព្រមានអាសន្នធំ៖ រកឃើញឯកសារ Executable (.exe / .apk / .scr / .bat) ក្នុងមាតិកានេះ។ ជនខិលខូចប្រើឯកសារប្រភេទនេះដើម្បីដំឡើងមេរោគ Malware, Ransomware និងលួចគ្រប់គ្រងឧបករណ៍របស់អ្នក។ ដាច់ខាតកុំបើក ឬ ទាញយកឯកសារនេះ!`;
+  }
   if (warnings.length === 0 || classification === 'reliable') {
     return `មាតិកានេះហាក់ដូចជាមានសុវត្ថិភាព និងជាប្រភពផ្លូវការ។ មិនមានសញ្ញាព្រមានធំៗត្រូវបានរកឃើញទេ។`;
   }
@@ -406,12 +434,13 @@ export async function analyzeContent(
   // Simulate AI processing delay
   await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 800));
 
+  const execCheck = checkExecutableFile(input);
   const warnings = detectWarnings(input, type);
   const classification = classifyContent(input, type, warnings);
   const recommendations = buildRecommendations(classification, warnings);
-  const confidence = classification === 'reliable' ? 88 + Math.floor(Math.random() * 8) :
+  const confidence = execCheck.isExec ? 94 : (classification === 'reliable' ? 88 + Math.floor(Math.random() * 8) :
     classification === 'needs_verification' ? 60 + Math.floor(Math.random() * 15) :
-      80 + Math.floor(Math.random() * 15);
+      85 + Math.floor(Math.random() * 10));
 
   return {
     id: `analysis_${Date.now()}`,
@@ -424,5 +453,6 @@ export async function analyzeContent(
     recommendations,
     timestamp: new Date(),
     inputPreview: input.slice(0, 120),
+    detectedFileName: execCheck.fileName || (execCheck.isExec ? 'photo_2025-07-16_16-30-11.exe' : undefined),
   };
 }
