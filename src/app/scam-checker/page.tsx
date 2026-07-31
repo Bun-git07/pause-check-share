@@ -159,6 +159,23 @@ export default function ScamCheckerPage() {
         {/* Result */}
         {result && !analyzing && (
           <div className="space-y-4">
+            {/* AI Media / Deepfake Warning Banner */}
+            {(result.isAiGenerated || result.warningSigns.some(w => w.id === 'ai_artifacts' || w.id === 'edited_video')) && (
+              <div className="card p-4 space-y-2 border-2 border-purple-500 bg-purple-500/10">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🤖</span>
+                  <p className="font-bold text-sm text-purple-700 dark:text-purple-300 uppercase" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
+                    {khmer ? '🤖 រកឃើញ វីដេអូ DEEPFAKE / AI' : '🤖 AI MEDIA / DEEPFAKE DETECTED'}
+                  </p>
+                </div>
+                <p className="text-xs text-muted leading-relaxed" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
+                  {khmer
+                    ? 'មាតិកានេះបង្ហាញសញ្ញានៃការបង្កើតដោយ AI ឬ Deepfake (ទម្រង់មុខ/សំឡេងក្លែងក្លាយ)។ សូមកុំផ្ញើប្រាក់ ឬ ជឿជាក់ដោយគ្មានការផ្ទៀងផ្ទាត់!'
+                    : 'This message or media contains strong signs of AI generation or Deepfake voice/face manipulation. Never send money or share credentials based on unverified AI media.'}
+                </p>
+              </div>
+            )}
+
             {/* Classification */}
             <div className="card p-5 text-center space-y-2"
               style={{
