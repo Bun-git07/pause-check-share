@@ -203,6 +203,40 @@ export default function VerifyResultPage() {
           </div>
         )}
 
+        {/* Fact-Check Verdict Banner */}
+        {result.factCheckVerdict && (
+          <div
+            className="card p-5 shadow-lg relative overflow-hidden"
+            style={{
+              background: result.factCheckVerdict === 'VERIFIED' ? '#10b981' : 
+                          result.factCheckVerdict === 'FALSE' ? '#ef4444' : 
+                          result.factCheckVerdict === 'MISLEADING' ? '#f59e0b' : '#9ca3af',
+              color: 'white',
+              border: 'none'
+            }}
+          >
+            <div className="relative z-10 flex items-center gap-4">
+              <span className="text-5xl shrink-0 drop-shadow-md">
+                {result.factCheckVerdict === 'VERIFIED' ? '✅' : result.factCheckVerdict === 'FALSE' ? '❌' : result.factCheckVerdict === 'MISLEADING' ? '⚠️' : '⚪'}
+              </span>
+              <div>
+                <h2 className="font-black text-2xl tracking-wide uppercase drop-shadow-sm" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
+                  {khmer && result.factCheckVerdict === 'VERIFIED' ? 'បានផ្ទៀងផ្ទាត់ (VERIFIED)' :
+                   khmer && result.factCheckVerdict === 'FALSE' ? 'ព័ត៌មានមិនពិត (FALSE)' :
+                   khmer && result.factCheckVerdict === 'MISLEADING' ? 'នាំឲ្យយល់ច្រឡំ (MISLEADING)' :
+                   khmer && result.factCheckVerdict === 'UNVERIFIED' ? 'មិនទាន់បញ្ជាក់ (UNVERIFIED)' :
+                   result.factCheckVerdict}
+                </h2>
+                {result.factCheckSummary && (
+                  <p className="text-sm font-bold opacity-90 mt-1 drop-shadow-sm leading-snug" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit', lineHeight: khmer ? 1.6 : 1.4 }}>
+                    {result.factCheckSummary}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Classification Card */}
         <div className="card p-6 text-center space-y-3" style={{ background: config.bg, borderColor: config.border, borderWidth: 2 }}>
           <div className="text-6xl">{config.emoji}</div>

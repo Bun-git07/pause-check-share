@@ -7,6 +7,27 @@ import {
 } from '@/types';
 import { getChasCheckerModel } from './gemini';
 
+export const FACT_CHECKER_SYSTEM_PROMPT = `You are an expert fact-checking assistant for "Pause, Check, Share" (ChasChecker), designed to analyze news claims, social media posts, and viral text circulating online (specifically tailored for users in Cambodia).
+
+Your task is to analyze the user's input text and provide a structured JSON response evaluating its authenticity.
+
+### System Instructions:
+1. Language Support: Analyze inputs in Khmer, English, or mixed Khmer-English. Respond in the same primary language as the user's input.
+2. Risk Levels:
+   - VERIFIED: Clear evidence supports this claim from official sources or trusted news outlets.
+   - UNVERIFIED: Insufficient reliable information available to confirm or deny.
+   - MISLEADING: Contains partial truths presented out of context or edited media.
+   - FALSE / MISINFORMATION: Proven false by official statements, fact-checkers, or reliable data.
+
+### Required JSON Output Format:
+{
+  "verdict": "VERIFIED" | "UNVERIFIED" | "MISLEADING" | "FALSE",
+  "confidence_score": 0-100,
+  "summary": "Short 1-2 sentence explanation of the finding.",
+  "key_reasons": ["Reason 1", "Reason 2"],
+  "recommended_action": "Actionable advice for the user"
+}`;
+
 export const CHASCHECKER_SYSTEM_PROMPT_V2 = `# CHASCHECKER AI SYSTEM INSTRUCTION
 
 You are ChasChecker AI, an advanced Digital Safety, Cybersecurity, Scam Detection, and Misinformation Analysis Assistant.
@@ -439,7 +460,9 @@ export async function analyzeContent(
   input: string,
   type: ContentType
 ): Promise<AnalysisResult> {
-  const model = getChasCheckerModel();
+  const isFactCheck = type === 'text' || type === 'social_post';
+  const model = getChasCheckerModel(isFactCheck ? FACT_CHECKER_SYSTEM_PROMPT : CHASCHECKER_SYSTEM_PROMPT_V2);
+  
   if (model) {
     try {
       const prompt = `Analyze the following content (${type}):\n"${input}"\n\nReturn JSON output matching the ChasChecker AI analysis schema.`;
@@ -448,6 +471,33 @@ export async function analyzeContent(
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
+        
+        // Handle Fact-Checker JSON format
+        if (isFactCheck && parsed.verdict) {
+          const confidenceVal = parsed.confidence_score || 85;
+          let classificationVal: ClassificationLevel = 'potentially_misleading';
+          if (parsed.verdict === 'FALSE' || parsed.verdict === 'MISLEADING') classificationVal = 'potentially_misleading';
+          if (parsed.verdict === 'UNVERIFIED') classificationVal = 'needs_verification';
+          
+          return {
+            id: `analysis_${Date.now()}`,
+            contentType: type,
+            classification: classificationVal,
+            confidence: confidenceVal,
+            warningSigns: (parsed.key_reasons || []).map((r: string, i: number) => ({
+              id: `fc_reason_${i}`, icon: '🔎', title: r, titleKm: r, description: r, descriptionKm: r, severity: 'medium'
+            })),
+            explanation: parsed.summary || 'Fact check completed.',
+            explanationKm: parsed.summary || 'ការផ្ទៀងផ្ទាត់ត្រូវបានបញ្ចប់។',
+            recommendations: parsed.recommended_action ? [{ id: 'rec_0', icon: '✅', text: parsed.recommended_action, textKm: parsed.recommended_action }] : [],
+            timestamp: new Date(),
+            inputPreview: input.slice(0, 120),
+            factCheckVerdict: parsed.verdict,
+            factCheckSummary: parsed.summary
+          };
+        }
+
+        // Standard AI Media format
         const isAi = parsed.authenticity?.status ? parsed.authenticity.status !== 'No Indicators' : parsed.aiMediaAnalysis?.assessment !== 'No Indicators';
         const confidenceVal = parsed.authenticity?.confidence || (parsed.riskScore > 80 ? 94 : 88);
         const classificationVal = isAi || (parsed.riskScore && parsed.riskScore > 60) || parsed.warningLevel === 'High' ? 'potentially_misleading' : (parsed.riskScore > 35 || parsed.warningLevel === 'Medium') ? 'needs_verification' : 'reliable';
@@ -499,6 +549,23 @@ export async function analyzeContent(
 
   // Fallback to local deterministic safety engine
   await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 500));
+
+  if (type === 'text' || type === 'social_post') {
+    return {
+      id: `mock_fc_${Date.now()}`,
+      contentType: type,
+      classification: 'potentially_misleading',
+      confidence: 82,
+      warningSigns: [],
+      explanation: 'Fact check completed by fallback engine.',
+      explanationKm: 'ការផ្ទៀងផ្ទាត់ត្រូវបានបញ្ចប់។',
+      recommendations: [{ id: 'rec_fb', icon: '✅', text: 'Verify this information via official news outlets.', textKm: 'ផ្ទៀងផ្ទាត់ព័ត៌មាននេះតាមរយៈប្រភពផ្លូវការ។' }],
+      timestamp: new Date(),
+      inputPreview: input.slice(0, 120),
+      factCheckVerdict: 'UNVERIFIED',
+      factCheckSummary: 'We could not reliably confirm the accuracy of this text. Please double-check with official sources.'
+    };
+  }
 
   const execCheck = checkExecutableFile(input);
   const aiCheck = checkAiGeneratedMedia(input, type);
