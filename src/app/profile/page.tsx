@@ -4,6 +4,7 @@ import { Globe, Type, Volume2, Moon, Info, HelpCircle, ChevronRight } from 'luci
 import TopBar from '@/components/layout/TopBar';
 import BottomNav from '@/components/layout/BottomNav';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useVoice } from '@/hooks/useVoice';
 import { t } from '@/lib/i18n';
 
 interface ToggleProps {
@@ -45,6 +46,7 @@ function Toggle({ label, value, onChange, icon, description }: ToggleProps) {
 
 export default function ProfilePage() {
   const { settings, updateSetting } = useSettings();
+  const { speak, stop } = useVoice();
   const lang = settings.language;
   const khmer = lang === 'km';
 
@@ -98,14 +100,21 @@ export default function ProfilePage() {
               value={settings.largeText}
               onChange={v => updateSetting('largeText', v)}
               icon={<Type size={18} />}
-              description={lang === 'km' ? 'អក្សរ 20px+' : 'Larger fonts for easier reading'}
+              description={lang === 'km' ? 'អក្សរ 20px+ ធំងាយមើល' : 'Larger 20px fonts for senior readability'}
             />
             <Toggle
               label={t('profile.voice', lang)}
               value={settings.voiceEnabled}
-              onChange={v => updateSetting('voiceEnabled', v)}
+              onChange={v => {
+                updateSetting('voiceEnabled', v);
+                if (v) {
+                  speak(lang === 'km' ? 'បានបើកការអានជាសំឡេង' : 'Voice reading is now enabled', lang);
+                } else {
+                  stop();
+                }
+              }}
               icon={<Volume2 size={18} />}
-              description={lang === 'km' ? 'អានអក្សរជាសំឡេង' : 'Read text aloud on screen'}
+              description={lang === 'km' ? 'អានអក្សរលើអេក្រង់ជាសំឡេង' : 'Read text aloud on screen'}
             />
             <Toggle
               label={t('profile.dark_mode', lang)}

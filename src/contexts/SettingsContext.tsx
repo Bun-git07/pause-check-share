@@ -1,6 +1,6 @@
 'use client';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { AppSettings, Language } from '@/types';
+import { AppSettings } from '@/types';
 
 const defaultSettings: AppSettings = {
   language: 'km',
@@ -27,6 +27,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', settings.darkMode);
+      document.documentElement.classList.toggle('large-text', settings.largeText);
+      document.body.classList.toggle('dark', settings.darkMode);
+      document.body.classList.toggle('large-text', settings.largeText);
+    }
+  }, [settings.darkMode, settings.largeText]);
+
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings(prev => {
       const next = { ...prev, [key]: value };
@@ -38,8 +47,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   return (
     <SettingsContext.Provider value={{ settings, updateSetting }}>
       <div
-        className={`${settings.darkMode ? 'dark' : ''} ${settings.largeText ? 'text-large' : ''}`}
-        style={{ fontSize: settings.largeText ? '20px' : '16px' }}
+        className={`${settings.darkMode ? 'dark' : ''} ${settings.largeText ? 'large-text' : ''}`}
       >
         {children}
       </div>

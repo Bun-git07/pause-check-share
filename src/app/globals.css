@@ -251,4 +251,41 @@
 
   /* Safe area padding */
   .pb-safe { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+
+  /* Large Text Accessibility Mode */
+  html.large-text {
+    font-size: 19px;
+  }
+
+  .large-text p,
+  .large-text span,
+  .large-text button,
+  .large-text input,
+  .large-text textarea,
+  .large-text li,
+  .large-text label {
+    font-size: 1.15rem;
+    line-height: 1.8;
+  }
+
+  .large-text h1 { font-size: 1.65rem !important; }
+  .large-text h2 { font-size: 1.45rem !important; }
+  .large-text h3 { font-size: 1.3rem !important; }
+  .large-text .text-xs { font-size: 0.95rem !important; }
+  .large-text .text-sm { font-size: 1.08rem !important; }
+  .large-text .text-base { font-size: 1.2rem !important; }
+  .large-text .text-lg { font-size: 1.35rem !important; }
+  .large-text .text-xl { font-size: 1.5rem !important; }
+
+  .large-text .btn-primary,
+  .large-text .btn-secondary,
+  .large-text .btn-ghost {
+    min-height: 62px !important;
+    font-size: 1.18rem !important;
+    padding: 0.875rem 1.25rem !important;
+  }
+
+  .large-text .card {
+    padding: 1.25rem !important;
+  }
 }

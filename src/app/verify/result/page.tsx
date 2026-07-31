@@ -2,11 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Share2, Save, RefreshCw, Info } from 'lucide-react';
+import { Share2, Save, RefreshCw, Info, Volume2, VolumeX } from 'lucide-react';
 import TopBar from '@/components/layout/TopBar';
 import BottomNav from '@/components/layout/BottomNav';
 import ClassificationBadge from '@/components/ui/ClassificationBadge';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useVoice } from '@/hooks/useVoice';
 import { t } from '@/lib/i18n';
 import { AnalysisResult } from '@/types';
 
@@ -21,6 +22,7 @@ const SEVERITY_COLOR = { low: '#43A047', medium: '#F9A825', high: '#E53935' };
 export default function VerifyResultPage() {
   const router = useRouter();
   const { settings } = useSettings();
+  const { toggle, speaking, speak, stop } = useVoice();
   const lang = settings.language;
   const khmer = lang === 'km';
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -28,8 +30,21 @@ export default function VerifyResultPage() {
   useEffect(() => {
     const raw = sessionStorage.getItem('latest_result');
     if (!raw) { router.replace('/verify'); return; }
-    try { setResult(JSON.parse(raw)); } catch { router.replace('/verify'); }
+    try {
+      const parsed = JSON.parse(raw);
+      setResult(parsed);
+    } catch { router.replace('/verify'); }
   }, [router]);
+
+  // Auto-read result if voice reading is enabled in settings
+  useEffect(() => {
+    if (result && settings.voiceEnabled) {
+      const summaryText = khmer
+        ? `លទ្ធផលវិភាគ៖ ${result.classification === 'reliable' ? 'អាចទុកចិត្តបាន' : result.classification === 'needs_verification' ? 'ត្រូវពិនិត្យបន្ថែម' : 'គ្រោះថ្នាក់អាចក្លែងក្លាយ'}។ ${result.explanationKm}`
+        : `Analysis Result: ${result.classification}. ${result.explanation}`;
+      speak(summaryText, lang);
+    }
+  }, [result, settings.voiceEnabled, khmer, lang, speak]);
 
   if (!result) return null;
 
@@ -38,11 +53,28 @@ export default function VerifyResultPage() {
   const config = CLASSIFICATION_COLORS[result.classification];
   const explanation = khmer ? result.explanationKm : result.explanation;
 
+  const speechText = khmer
+    ? `លទ្ធផលវិភាគ៖ ${result.classification === 'reliable' ? 'អាចទុកចិត្តបាន' : result.classification === 'needs_verification' ? 'ត្រូវពិនិត្យបន្ថែម' : 'គ្រោះថ្នាក់អាចក្លែងក្លាយ'}។ ${result.explanationKm}. ${result.warningSigns.map(w => w.titleKm).join('. ')}`
+    : `Analysis Result: ${result.classification}. ${result.explanation}. ${result.warningSigns.map(w => w.title).join('. ')}`;
+
   return (
     <div className="min-h-screen bg-app">
-      <TopBar title={t('result.title', lang)} titleKm="លទ្ធផលវិភាគ" showBack />
+      <TopBar title={t('result.title', lang)} titleKm="លទ្ធផលវិភាគ" showBack speechText={speechText} />
 
       <div className="page-content space-y-5">
+        {/* Voice Reader CTA Button */}
+        <button
+          onClick={() => toggle(speechText, lang)}
+          className={`btn-secondary flex items-center justify-center gap-2 text-base transition-all ${
+            speaking ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)] font-bold text-[var(--color-primary)] animate-pulse' : ''
+          }`}
+          style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}
+        >
+          {speaking ? <Volume2 size={20} className="animate-bounce" /> : <Volume2 size={20} />}
+          {speaking
+            ? (khmer ? '🔊 កំពុងអាន...' : '🔊 Reading Aloud...')
+            : (khmer ? '🔊 អានលទ្ធផលឱ្យស្តាប់' : '🔊 Read Result Aloud')}
+        </button>
         {/* Massive Red Flag Banner for Executable Detection */}
         {hasExecutable && (
           <div
