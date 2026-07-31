@@ -49,7 +49,7 @@ export default function VerifyResultPage() {
   if (!result) return null;
 
   const hasExecutable = result.warningSigns.some(w => w.id === 'executable_file') || !!result.detectedFileName;
-  const isAiGenerated = result.isAiGenerated || result.warningSigns.some(w => w.id === 'ai_artifacts' || w.id === 'edited_video');
+  const isAiGenerated = result.isAiGenerated || result.coreVerdict === 'MANIPULATED_MEDIA' || result.warningSigns.some(w => w.id === 'ai_artifacts' || w.id === 'edited_video');
   const aiType = result.aiDetectionType || (result.warningSigns.some(w => w.id === 'edited_video') ? 'deepfake' : 'image');
   const detectedFileName = result.detectedFileName || 'photo_2025-07-16_16-30-11.exe';
   const config = CLASSIFICATION_COLORS[result.classification];
