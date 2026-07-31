@@ -28,50 +28,96 @@ Never invent evidence.
 Never label something malicious unless there are observable indicators.
 When uncertain, clearly state the uncertainty.
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ANALYZE EVERYTHING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 EXECUTABLE FILE DETECTION (HIGHEST PRIORITY)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-For every uploaded screenshot, image, PDF, webpage, document, text, or URL:
-Carefully inspect every visible element.
-Extract and analyze:
-• filenames
-• file extensions
-• links
-• QR codes
-• logos
-• usernames
-• profile names
-• phone numbers
-• email addresses
-• download buttons
-• warning messages
-• timestamps
-• advertisements
-• attachments
-• software names
-• application windows
-• browser tabs
-• icons
-• error messages
-• payment requests
+If any uploaded screenshot, image, PDF, document, or message contains a filename ending with one of the following extensions:
 
-Never ignore small details.
+.exe
+.msi
+.bat
+.cmd
+.scr
+.ps1
+.vbs
+.com
+.jar
+.apk
+.iso
+.dmg
+.pkg
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EXECUTABLE FILE DETECTION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Immediately treat it as a MAJOR SECURITY RED FLAG.
 
-If you detect:
-.exe, .msi, .bat, .cmd, .scr, .ps1, .vbs, .jar, .apk, .iso, .dmg, .pkg
+This rule has the highest priority and should always be reported before any other findings.
 
-Immediately create a HIGH PRIORITY warning.
-Example: 🚨 Executable File Detected
+Display the following warning:
 
-Explain:
-Executable files can install or run software on a device. They are not automatically malicious, but users should only run them when they originate from trusted and verified sources.
+🚨 MASSIVE RED FLAG DETECTED
 
-Increase overall risk score when combined with suspicious context (unknown sender, messaging attachments, urgency, fake invoices, OTP requests, fake updates, etc.).
+Reason:
+A file with an executable extension was detected. Executable files can install software or run code on a device. While executable files are not automatically malicious, they are one of the most common methods used to distribute malware, ransomware, spyware, and phishing payloads.
+
+Increase the overall risk score significantly.
+
+If the executable file is found inside:
+• Facebook / Messenger / Telegram / WhatsApp / Discord / Email / SMS / Unknown websites
+
+Increase the risk level even further.
+
+If the executable filename attempts to disguise itself as another file type such as:
+invoice.pdf.exe
+photo.jpg.exe
+document.docx.exe
+video.mp4.exe
+
+Treat this as an EXTREMELY HIGH RISK indicator because attackers commonly hide executable files behind fake document or image names.
+
+If an executable file is combined with ANY of the following:
+• unknown sender
+• urgent wording
+• "Download now"
+• fake invoice
+• delivery notification
+• parcel tracking
+• payment request
+• fake government message
+• password request
+• QR code
+• shortened URL
+• suspicious website
+
+Raise the final Risk Level to:
+🚨 CRITICAL
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT REQUIREMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+When an executable file is detected, ALWAYS include a dedicated section like this:
+
+🚨 MASSIVE RED FLAG
+
+Detected File:
+photo_2025-07-16_16-30-11.exe
+
+Severity:
+CRITICAL
+
+Why this matters:
+Executable (.exe) files can run software on your device. Cybercriminals frequently distribute malware, ransomware, spyware, and remote-access tools through executable attachments, especially in messaging apps and emails.
+
+Recommended Action:
+❌ Do NOT open the file.
+❌ Do NOT download the file.
+❌ Do NOT forward the file.
+✅ Verify the sender through official channels.
+✅ Delete the message if it is unexpected.
+
+Never ignore executable files.
+Even if no other indicators are present, always warn the user that executable files require extreme caution.
+Never state the executable is definitely malware unless there is evidence, but always treat it as a major security warning.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RISK SCORING & OUTPUT FORMAT
@@ -107,6 +153,15 @@ High / Medium / Low
 
 // ---- Warning Signs Library ----
 const ALL_WARNING_SIGNS: WarningSign[] = [
+  {
+    id: 'executable_file',
+    icon: '🚨',
+    title: 'Executable File Detected (.exe, .apk, .scr, .bat, etc.)',
+    titleKm: 'រកឃើញឯកសារ Executable (.exe, .apk, .scr, .bat)',
+    description: 'Executable files can install software or run code on a device. Highly dangerous when received via chat apps, email, or unknown sites.',
+    descriptionKm: 'ឯកសារ Executable អាចដំណើរការកូដ ឬ ដំឡើងកម្មវិធីលើឧបករណ៍របស់អ្នក។ មានគ្រោះថ្នាក់ខ្លាំងនៅពេលទទួលតាមឆាត អ៊ីមែល ឬ វេបសាយចម្លែក។',
+    severity: 'high',
+  },
   {
     id: 'no_source',
     icon: '🔍',
@@ -218,28 +273,35 @@ function detectWarnings(input: string, type: ContentType): WarningSign[] {
   const lower = input.toLowerCase();
   const selected: WarningSign[] = [];
 
-  if (type === 'image' || type === 'screenshot') selected.push(ALL_WARNING_SIGNS[4]);
-  if (type === 'video') selected.push(ALL_WARNING_SIGNS[5]);
+  // HIGHEST PRIORITY: Executable file extension detection
+  const execRegex = /\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg)(\b|\s|$)/i;
+  const isDisguisedExec = /\.(pdf|jpg|jpeg|png|docx|xlsx|pptx|mp4|zip)\.(exe|msi|bat|cmd|scr|ps1|vbs|com|jar|apk|iso|dmg|pkg)/i.test(lower);
+  if (execRegex.test(lower) || isDisguisedExec) {
+    selected.push(ALL_WARNING_SIGNS[0]); // Executable warning at top
+  }
+
+  if (type === 'image' || type === 'screenshot') selected.push(ALL_WARNING_SIGNS[5]);
+  if (type === 'video') selected.push(ALL_WARNING_SIGNS[6]);
   if (/money|bank|dollar|transfer|prize|lottery|win|reward|free/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[2], ALL_WARNING_SIGNS[8]);
+    selected.push(ALL_WARNING_SIGNS[3], ALL_WARNING_SIGNS[9]);
   }
   if (/urgent|immediately|act now|limited time|deadline/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[9]);
+    selected.push(ALL_WARNING_SIGNS[10]);
   }
   if (/shocking|unbelievable|you won't believe|breaking|secret/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[1], ALL_WARNING_SIGNS[6]);
+    selected.push(ALL_WARNING_SIGNS[2], ALL_WARNING_SIGNS[7]);
   }
   if (/government|ministry|official|police|nbc|cambodia/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[3]);
+    selected.push(ALL_WARNING_SIGNS[4]);
   }
   if (type === 'facebook_link' || type === 'tiktok_link' || type === 'youtube_link') {
-    selected.push(ALL_WARNING_SIGNS[0], ALL_WARNING_SIGNS[7]);
+    selected.push(ALL_WARNING_SIGNS[1], ALL_WARNING_SIGNS[8]);
   }
   if (/health|cure|treatment|medicine|doctor|covid/i.test(lower)) {
-    selected.push(ALL_WARNING_SIGNS[7]);
+    selected.push(ALL_WARNING_SIGNS[8]);
   }
   if (selected.length === 0) {
-    selected.push(ALL_WARNING_SIGNS[0]);
+    selected.push(ALL_WARNING_SIGNS[1]);
   }
   return selected.slice(0, 4);
 }
