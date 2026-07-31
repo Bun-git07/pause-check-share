@@ -482,7 +482,9 @@ function buildExplanationKm(classification: ClassificationLevel, warnings: Warni
 // ---- Main Export ----
 export async function analyzeContent(
   input: string,
-  type: ContentType
+  type: ContentType,
+  fileData?: string,
+  fileMimeType?: string
 ): Promise<AnalysisResult> {
   const isTextFactCheck = type === 'text' || type === 'social_post';
   const isImageFactCheck = type === 'image' || type === 'screenshot';
@@ -496,7 +498,25 @@ export async function analyzeContent(
   if (model) {
     try {
       const prompt = `Analyze the following content (${type}):\n"${input}"\n\nReturn JSON output matching the ChasChecker AI analysis schema.`;
-      const response = await model.generateContent(prompt);
+      
+      let response;
+      if (fileData && fileMimeType) {
+        // fileData is expected to be a data URL (e.g. data:image/png;base64,iVBORw0KGgo...)
+        const base64String = fileData.includes(',') ? fileData.split(',')[1] : fileData;
+        const parts = [
+          prompt,
+          {
+            inlineData: {
+              data: base64String,
+              mimeType: fileMimeType
+            }
+          }
+        ];
+        response = await model.generateContent(parts);
+      } else {
+        response = await model.generateContent(prompt);
+      }
+      
       const text = response.response.text();
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {

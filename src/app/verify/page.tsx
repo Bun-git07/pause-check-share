@@ -57,15 +57,31 @@ export default function VerifyPage() {
     return false;
   };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
   const handleAnalyze = async () => {
     if (!canAnalyze()) return;
     setAnalyzing(true);
     try {
       let input = '';
       let type: ContentType = 'text';
+      let fileData: string | undefined = undefined;
+      let fileMimeType: string | undefined = undefined;
+
       if (tab === 'upload' && uploadedFile) {
         input = uploadedFile.name;
         type = uploadedFile.type.startsWith('video/') ? 'video' : 'image';
+        if (type === 'image') {
+          fileData = await fileToBase64(uploadedFile);
+          fileMimeType = uploadedFile.type;
+        }
       } else if (tab === 'link') {
         input = linkInput.trim();
         if (/tiktok\.com|vt\.tiktok/i.test(input)) {
@@ -81,7 +97,7 @@ export default function VerifyPage() {
         input = textInput.trim();
         type = 'messenger_message';
       }
-      const result = await analyzeContent(input, type);
+      const result = await analyzeContent(input, type, fileData, fileMimeType);
       addToHistory(result, type, input.slice(0, 80));
       // Store result for result page
       sessionStorage.setItem('latest_result', JSON.stringify(result));
