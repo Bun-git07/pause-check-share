@@ -13,6 +13,7 @@ export const CORE_INTELLIGENCE_PROMPT = `You are the core intelligence engine fo
 1. For Screenshots:
    - Identify visual manipulation (edited text, mismatched alignment/fonts on payment receipts or social posts).
    - Detect AI-generated images or deepfake artifacts.
+   - Detect malicious executable files (.exe, .apk, .bat, .scr) or fake app installation downloads in chat screenshots.
    - Extract and verify the core textual claim against factual knowledge.
 2. For Links / URLs:
    - Identify domain spoofing, suspicious TLDs, or phishing structures.
