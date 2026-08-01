@@ -8,16 +8,14 @@ import { AnalyzingOverlay } from '@/components/ui/LoadingSpinner';
 import GuideModal from '@/components/ui/GuideModal';
 import { useSettings } from '@/contexts/SettingsContext';
 import { t } from '@/lib/i18n';
-import { analyzeContent } from '@/lib/mockAI';
-import { useHistory } from '@/contexts/HistoryContext';
-import { ContentType, AnalysisResult } from '@/types';
+import ReactMarkdown from 'react-markdown';
+import { ContentType } from '@/types';
 
 const SEVERITY_COLOR: Record<string, string> = { low: '#43A047', medium: '#F9A825', high: '#E53935' };
 
 export default function ScamCheckerPage() {
   const router = useRouter();
   const { settings } = useSettings();
-  const { addToHistory } = useHistory();
   const lang = settings.language;
   const khmer = lang === 'km';
 
@@ -25,7 +23,7 @@ export default function ScamCheckerPage() {
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideDefaultTab, setGuideDefaultTab] = useState<'link' | 'screenshot'>('screenshot');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -47,20 +45,27 @@ export default function ScamCheckerPage() {
 
   const analyze = async () => {
     const input = mode === 'text' ? text : (file?.name ?? '');
-    const type: ContentType = mode === 'upload' ? 'screenshot' : 'sms';
-    if (!input.trim()) return;
+    if (!input.trim() && !file) return;
+    
     setAnalyzing(true);
-    setResult(null);
+    setAiResponse(null);
     try {
-      let fileData: string | undefined = undefined;
-      let fileMimeType: string | undefined = undefined;
+      const formData = new FormData();
       if (mode === 'upload' && file) {
-        fileData = await fileToBase64(file);
-        fileMimeType = file.type;
+        formData.append('file', file);
+      } else if (mode === 'text' && text.trim()) {
+        formData.append('text', text);
       }
-      const r = await analyzeContent(input, type, fileData, fileMimeType);
-      setResult(r);
-      addToHistory(r, type, input.slice(0, 80));
+
+      const res = await fetch('/api/check', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      setAiResponse(data.result || data.error || 'No result returned');
+    } catch (err) {
+      console.error(err);
+      setAiResponse('Error connecting to the analysis server.');
     } finally {
       setAnalyzing(false);
     }
@@ -172,83 +177,9 @@ export default function ScamCheckerPage() {
         )}
 
         {/* Result */}
-        {result && !analyzing && (
-          <div className="space-y-4">
-            {/* AI Media / Deepfake Warning Banner */}
-            {(result.isAiGenerated || result.warningSigns.some(w => w.id === 'ai_artifacts' || w.id === 'edited_video')) && (
-              <div className="card p-4 space-y-2 border-2 border-purple-500 bg-purple-500/10">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">🤖</span>
-                  <p className="font-bold text-sm text-purple-700 dark:text-purple-300 uppercase" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-                    {khmer ? '🤖 រកឃើញ វីដេអូ DEEPFAKE / AI' : '🤖 AI MEDIA / DEEPFAKE DETECTED'}
-                  </p>
-                </div>
-                <p className="text-xs text-muted leading-relaxed" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-                  {khmer
-                    ? 'មាតិកានេះបង្ហាញសញ្ញានៃការបង្កើតដោយ AI ឬ Deepfake (ទម្រង់មុខ/សំឡេងក្លែងក្លាយ)។ សូមកុំផ្ញើប្រាក់ ឬ ជឿជាក់ដោយគ្មានការផ្ទៀងផ្ទាត់!'
-                    : 'This message or media contains strong signs of AI generation or Deepfake voice/face manipulation. Never send money or share credentials based on unverified AI media.'}
-                </p>
-              </div>
-            )}
-
-            {/* Classification */}
-            <div className="card p-5 text-center space-y-2"
-              style={{
-                background: result.classification === 'potentially_misleading' ? 'var(--color-danger-light)' : result.classification === 'needs_verification' ? 'var(--color-warning-light)' : 'var(--color-secondary-light)',
-                borderColor: result.classification === 'potentially_misleading' ? 'var(--color-danger)' : result.classification === 'needs_verification' ? 'var(--color-warning)' : 'var(--color-secondary)',
-                borderWidth: 2,
-              }}>
-              <div className="text-5xl">{result.classification === 'potentially_misleading' ? '🚨' : result.classification === 'needs_verification' ? '⚠️' : '✅'}</div>
-              <p className="font-extrabold text-lg" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-                {result.classification === 'potentially_misleading'
-                  ? (lang === 'km' ? 'ហាក់ដូចជាការបោក!' : 'Likely a Scam!')
-                  : result.classification === 'needs_verification'
-                  ? (lang === 'km' ? 'ប្រុងប្រយ័ត្ន — ពិនិត្យបន្ថែម' : 'Be Careful — Check More')
-                  : (lang === 'km' ? 'ហាក់គ្មានបញ្ហា' : 'Appears OK')}
-              </p>
-            </div>
-
-            {/* Red Flags */}
-            {result.warningSigns.length > 0 && (
-              <div className="card p-4 space-y-3">
-                <h3 className="font-bold text-sm" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-                  🚩 {t('scam.red_flags', lang)}
-                </h3>
-                {result.warningSigns.map(ws => (
-                  <div key={ws.id} className="flex gap-2 items-start">
-                    <span className="text-xl">{ws.icon}</span>
-                    <div>
-                      <p className="font-semibold text-sm" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-                        {khmer ? ws.titleKm : ws.title}
-                      </p>
-                      {ws.description && (
-                        <p className="text-xs text-muted" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-                          {khmer ? ws.descriptionKm : ws.description}
-                        </p>
-                      )}
-                    </div>
-                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-semibold shrink-0" style={{ background: `${SEVERITY_COLOR[ws.severity]}22`, color: SEVERITY_COLOR[ws.severity] }}>
-                      {ws.severity}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Recommendation */}
-            <div className="card p-4 space-y-2">
-              <h3 className="font-bold text-sm" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-                ✅ {t('scam.recommendation', lang)}
-              </h3>
-              {result.recommendations.map(r => (
-                <div key={r.id} className="flex gap-2 items-center p-2 rounded-xl" style={{ background: 'var(--color-primary-light)' }}>
-                  <span className="text-lg">{r.icon}</span>
-                  <span className="text-sm font-medium" style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}>
-                    {khmer ? r.textKm : r.text}
-                  </span>
-                </div>
-              ))}
-            </div>
+        {aiResponse && !analyzing && (
+          <div className="card p-5 markdown-body">
+            <ReactMarkdown>{aiResponse}</ReactMarkdown>
           </div>
         )}
       </div>

@@ -7,9 +7,8 @@ import BottomNav from '@/components/layout/BottomNav';
 import { AnalyzingOverlay } from '@/components/ui/LoadingSpinner';
 import GuideModal from '@/components/ui/GuideModal';
 import { useSettings } from '@/contexts/SettingsContext';
-import { useHistory } from '@/contexts/HistoryContext';
 import { t } from '@/lib/i18n';
-import { analyzeContent } from '@/lib/mockAI';
+import ReactMarkdown from 'react-markdown';
 import { ContentType } from '@/types';
 
 type Tab = 'upload' | 'link' | 'text';
@@ -23,7 +22,6 @@ const LINK_TYPES: { label: string; labelKm: string; placeholder: string; type: C
 export default function VerifyPage() {
   const router = useRouter();
   const { settings } = useSettings();
-  const { addToHistory } = useHistory();
   const lang = settings.language;
   const khmer = lang === 'km';
 
@@ -34,6 +32,7 @@ export default function VerifyPage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadPreview, setUploadPreview] = useState<string>('');
   const [analyzing, setAnalyzing] = useState(false);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideDefaultTab, setGuideDefaultTab] = useState<'link' | 'screenshot'>('link');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -69,39 +68,26 @@ export default function VerifyPage() {
   const handleAnalyze = async () => {
     if (!canAnalyze()) return;
     setAnalyzing(true);
+    setAiResponse(null);
     try {
-      let input = '';
-      let type: ContentType = 'text';
-      let fileData: string | undefined = undefined;
-      let fileMimeType: string | undefined = undefined;
-
+      const formData = new FormData();
       if (tab === 'upload' && uploadedFile) {
-        input = uploadedFile.name;
-        type = uploadedFile.type.startsWith('video/') ? 'video' : 'image';
-        if (type === 'image') {
-          fileData = await fileToBase64(uploadedFile);
-          fileMimeType = uploadedFile.type;
-        }
-      } else if (tab === 'link') {
-        input = linkInput.trim();
-        if (/tiktok\.com|vt\.tiktok/i.test(input)) {
-          type = 'tiktok_link';
-        } else if (/youtube\.com|youtu\.be/i.test(input)) {
-          type = 'youtube_link';
-        } else if (/facebook\.com|fb\.watch|fb\.com/i.test(input)) {
-          type = 'facebook_link';
-        } else {
-          type = LINK_TYPES[linkType].type;
-        }
-      } else {
-        input = textInput.trim();
-        type = 'messenger_message';
+        formData.append('file', uploadedFile);
+      } else if (tab === 'link' && linkInput.trim()) {
+        formData.append('url', linkInput.trim());
+      } else if (tab === 'text' && textInput.trim()) {
+        formData.append('text', textInput.trim());
       }
-      const result = await analyzeContent(input, type, fileData, fileMimeType);
-      addToHistory(result, type, input.slice(0, 80));
-      // Store result for result page
-      sessionStorage.setItem('latest_result', JSON.stringify(result));
-      router.push('/verify/result');
+
+      const res = await fetch('/api/check', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      setAiResponse(data.result || data.error || 'No result returned');
+    } catch (err) {
+      console.error(err);
+      setAiResponse('Error connecting to the analysis server.');
     } finally {
       setAnalyzing(false);
     }
@@ -268,6 +254,13 @@ export default function VerifyPage() {
         >
           🔍 {t('verify.analyze_btn', lang)}
         </button>
+
+        {/* Result */}
+        {aiResponse && !analyzing && (
+          <div className="card p-5 markdown-body">
+            <ReactMarkdown>{aiResponse}</ReactMarkdown>
+          </div>
+        )}
       </div>
 
       <GuideModal
