@@ -75,7 +75,7 @@ function generateFallbackAnalysis(inputText: string, hasImage: boolean): string 
   const lower = inputText.toLowerCase();
 
   // 1. Executable file rule
-  const isExec = /\.(exe|dmg|apk|iso|bat|scr|vbs|zip|rar)\b/i.test(inputText) || /installer\.exe|setup\.exe/i.test(inputText);
+  const isExec = /\.(exe|dmg|apk|iso|bat|scr|vbs|zip|rar)/i.test(inputText) || /setup|installer|download/i.test(inputText);
   if (isExec) {
     return `### 1. VERDICT & RISK LEVEL
 🔴 **HIGH RISK / DANGEROUS DOWNLOAD**
@@ -216,7 +216,7 @@ export async function POST(req: NextRequest) {
     if (genAI) {
       try {
         const model = genAI.getGenerativeModel({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.5-flash',
           systemInstruction: SYSTEM_INSTRUCTION,
         });
 
