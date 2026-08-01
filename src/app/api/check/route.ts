@@ -307,23 +307,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Call Gemini 2.5 Flash via Vercel AI SDK if provider is available
+    // Call Gemini AI via Vercel AI SDK if provider is available
     if (google) {
       try {
-        const { text: responseText } = await generateText({
-          model: google('gemini-2.5-flash'),
-          system: SYSTEM_INSTRUCTION,
-          messages: [
-            {
-              role: 'user',
-              content: contentParts,
-            },
-          ],
-        });
+        let modelName = 'gemini-1.5-flash';
+        let responseText = '';
+        
+        try {
+          const res = await generateText({
+            model: google('gemini-1.5-flash'),
+            system: SYSTEM_INSTRUCTION,
+            messages: [{ role: 'user', content: contentParts }],
+          });
+          responseText = res.text;
+        } catch (mErr) {
+          const res = await generateText({
+            model: google('gemini-2.5-flash'),
+            system: SYSTEM_INSTRUCTION,
+            messages: [{ role: 'user', content: contentParts }],
+          });
+          responseText = res.text;
+        }
 
         return NextResponse.json({ result: responseText });
       } catch (geminiError) {
-        console.warn('Vercel AI SDK (Gemini 2.5 Flash) call failed, falling back to rule engine:', geminiError);
+        console.warn('Vercel AI SDK (Gemini) call failed, falling back to rule engine:', geminiError);
       }
     }
 
