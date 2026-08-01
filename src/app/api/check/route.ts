@@ -41,6 +41,14 @@ You analyze PASTED TEXT, SUBMITTED URLS, and MULTIMODAL SCREENSHOTS across two p
 - **Pasted SMS / Chat Texts:** Analyze for high-pressure language ("Account blocked in 1 hour"), unverified financial claims, or advance-fee requirements ("Pay $10 to claim $1,000").
 - **Payment Receipts (ABA, Wing, etc.):** Check for inconsistent fonts, misaligned transaction IDs, or blurry editing overlays on uploaded screenshot receipts.
 
+### 4. Deepfake & AI-Generated Media Detection
+- **Visual Artifacts:** Analyze screenshots for unnatural lighting, distorted backgrounds, mangled text/fingers, facial asymmetry, or inconsistent shadows typical of AI generators (Midjourney, DALL-E, etc.).
+- **Audio/Video Claims:** If the post claims to be a video/audio recording of a public figure saying something controversial, flag it for potential voice-cloning or deepfake verification.
+
+### 5. False Information & Fake News Checking
+- **Sensationalism:** Flag highly emotional, polarizing, or clickbait headlines lacking verifiable sources or official news links.
+- **Hoax Patterns:** Identify common rumor templates, unverified medical claims, or unsourced political announcements.
+
 ---
 
 # REQUIRED OUTPUT FORMAT
@@ -152,6 +160,31 @@ function generateFallbackAnalysis(inputText: string, hasImage: boolean): string 
 
 ### 4. SAFETY TIP
 💡 **Pro Tip**: Banks will never send links requiring you to enter your login password or OTP via SMS or social messaging.`;
+  }
+
+  // 4. Fake News & Deepfake Checking Rule
+  const isFakeNews = /deepfake|ai generated|midjourney|dall-e|fake news|hoax|rumor|unverified|shocking truth/i.test(lower);
+  if (isFakeNews) {
+    return `### 1. VERDICT & RISK LEVEL
+🟡 **CAUTION / SUSPICIOUS (POTENTIAL FALSE INFO OR AI)**
+
+---
+
+### 2. SIGNAL BREAKDOWN
+- 🚩 **Unverified Sensationalism**: The content contains keywords heavily associated with clickbait, unverified rumors, or AI-generated media.
+- 🚩 **Potential AI Manipulation**: Be extremely skeptical of shocking images or voice clips lacking official news coverage.
+
+---
+
+### 3. WHAT TO DO NEXT
+1. **Reverse Image Search**: Run the image through Google Lens or TinEye to see if it has been fact-checked.
+2. **Check Official News Outlets**: Verify the claim on credible national news websites (e.g., local mainstream media).
+3. **Do Not Share Yet**: Stop the spread of misinformation by waiting for official verification before forwarding.
+
+---
+
+### 4. SAFETY TIP
+💡 **Pro Tip**: AI-generated images often have telltale signs like blurry backgrounds, unnatural lighting, or distorted hands/text.`;
   }
 
   // Default Caution / Suspicious fallback
