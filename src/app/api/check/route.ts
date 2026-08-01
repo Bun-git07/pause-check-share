@@ -185,21 +185,40 @@ export async function POST(req: NextRequest) {
     let hasImage = false;
 
     if (contentType.includes('application/json')) {
-      const json = await req.json();
-      
-      if (Array.isArray(json.messages) && json.messages.length > 0) {
-        return NextResponse.json({ result: json.messages });
-      }
+      try {
+        const json = await req.json();
+        
+        if (Array.isArray(json.messages) && json.messages.length > 0) {
+          for (const msg of json.messages) {
+            if (typeof msg.content === 'string') {
+              accumulatedText += ' ' + msg.content;
+              contentParts.push({ type: 'text', text: msg.content });
+            } else if (Array.isArray(msg.content)) {
+              for (const part of msg.content) {
+                if (part.type === 'text') {
+                  accumulatedText += ' ' + part.text;
+                  contentParts.push(part);
+                } else if (part.type === 'image') {
+                  hasImage = true;
+                  contentParts.push(part);
+                }
+              }
+            }
+          }
+        }
 
-      const promptText = json.prompt || json.text || json.content || json.url || '';
-      if (promptText) {
-        accumulatedText += ' ' + promptText;
-        contentParts.push({ type: 'text', text: promptText });
-      }
+        const promptText = json.prompt || json.text || json.content || json.url || '';
+        if (promptText) {
+          accumulatedText += ' ' + promptText;
+          contentParts.push({ type: 'text', text: promptText });
+        }
 
-      if (json.imageUrl) {
-        hasImage = true;
-        contentParts.push({ type: 'image', image: json.imageUrl });
+        if (json.imageUrl) {
+          hasImage = true;
+          contentParts.push({ type: 'image', image: json.imageUrl });
+        }
+      } catch (jsonErr) {
+        console.warn('Could not parse JSON body:', jsonErr);
       }
     } else {
       const formData = await req.formData();
