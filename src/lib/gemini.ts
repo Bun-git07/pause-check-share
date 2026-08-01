@@ -8,13 +8,13 @@ const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
 
 /**
  * Returns a configured Gemini model instance with the provided system prompt.
- * Always defaults to using gemini-1.5-flash to ensure fast and efficient fact-checking.
+ * Always defaults to using gemini-2.5-flash to ensure fast and efficient fact-checking.
  * If no API key is provided, returns null.
  */
 export function getChasCheckerModel(systemInstruction: string = CORE_INTELLIGENCE_PROMPT) {
   if (!genAI) return null;
   return genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.5-flash',
     systemInstruction,
   });
 }
