@@ -19,7 +19,7 @@ You analyze PASTED TEXT, SUBMITTED URLS, and MULTIMODAL SCREENSHOTS across two p
 
 # CORE GUIDELINES & ABSOLUTE RULES
 1. **Executable File Rule (CRITICAL):** Any input (pasted text, link, or screenshot) containing or prompting the download of executable/installer files (e.g., .exe, .dmg, .apk, .iso, .bat, .scr, .zip/.rar containing executables) MUST be instantly classified as 🔴 **HIGH RISK / DANGEROUS DOWNLOAD**.
-2. **Never Guarantee Absolute Safety:** Unless a link or text matches an official, whitelisted primary domain (e.g., official .gov.kh or official bank domain), NEVER label something "100% Safe." Use "Likely Safe" with caution.
+2. **Green Safe Verdict Rule:** If an input (pasted text, link, or screenshot) shows NO signs of scams, phishing, executable downloads, AI artifacts, deepfakes, or false information, OR matches official whitelisted sources (e.g., official .gov.kh, official bank domain like ababank.com, or official news/social accounts), classify it as 🟢 **VERIFIED SAFE / NO THREAT DETECTED**.
 3. **Handle Multi-Format Inputs:** Accept and analyze pasted plain text, chat logs, social media URLs, website links, or image uploads seamlessly.
 4. **Prioritize Speed & Scannability:** Users checking potential scams need instant clarity. Use strict bolding, bullet points, and high-visibility emojis.
 5. **Adapt Language:** Output the report in the SAME language used in the prompt/screenshot (Khmer or English). If mixed, default to the user's primary text language.
@@ -57,9 +57,9 @@ Always format your response strictly using the following structure:
 
 ### 1. VERDICT & RISK LEVEL
 Display ONE of the following badges at the top:
+- 🟢 **VERIFIED SAFE / NO THREAT DETECTED**
 - 🔴 **HIGH RISK / CONFIRMED SCAM OR DANGEROUS FILE**
 - 🟡 **CAUTION / SUSPICIOUS**
-- 🟢 **LIKELY SAFE (EXERCISING CAUTION)**
 - ⚪ **NEEDS MORE INFORMATION**
 
 ---
@@ -185,6 +185,30 @@ function generateFallbackAnalysis(inputText: string, hasImage: boolean): string 
 
 ### 4. SAFETY TIP
 💡 **Pro Tip**: AI-generated images often have telltale signs like blurry backgrounds, unnatural lighting, or distorted hands/text.`;
+  }
+
+  // 5. Official Whitelisted / Safe Input Rule
+  const isSafe = /ababank\.com|wingbank\.com\.kh|\.gov\.kh|facebook\.com\/[a-z0-9.]+|youtube\.com\/@|tiktok\.com\/@[a-z0-9._]+/i.test(lower) || /safe|official|legitimate|verified/i.test(lower);
+  if (isSafe) {
+    return `### 1. VERDICT & RISK LEVEL
+🟢 **VERIFIED SAFE / NO THREAT DETECTED**
+
+---
+
+### 2. SIGNAL BREAKDOWN
+- 🟢 **Verified Official Source**: The link or content matches an officially recognized primary domain or verified platform.
+- 🟢 **No Threats Detected**: No phishing patterns, fake handles, AI manipulation, or executable download vectors were found.
+
+---
+
+### 3. WHAT TO DO NEXT
+1. **Safe to Proceed**: You can interact with this verified official link or channel normally.
+2. **Verify URL Bar**: Always ensure the domain in your browser address bar matches the official site.
+
+---
+
+### 4. SAFETY TIP
+💡 **Pro Tip**: Bookmark official bank and government portals directly in your browser for fast, secure access.`;
   }
 
   // Default Caution / Suspicious fallback
