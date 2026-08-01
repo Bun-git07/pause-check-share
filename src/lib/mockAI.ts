@@ -5,7 +5,7 @@ import {
   WarningSign,
   Recommendation,
 } from '@/types';
-import { getChasCheckerModel } from './gemini';
+import { generateGeminiAnalysis } from '@/app/actions/gemini';
 
 export const CORE_INTELLIGENCE_PROMPT = `You are the core intelligence engine for "ChasChecker" (Pause, Check, Share). Your job is to analyze user-submitted screenshots or links for false information, AI-generated content, fake news, and financial/phishing scams.
 
@@ -376,31 +376,17 @@ export async function analyzeContent(
 ): Promise<AnalysisResult> {
   let systemPrompt = CORE_INTELLIGENCE_PROMPT;
 
-  const model = getChasCheckerModel(systemPrompt);
-  
-  if (model) {
-    try {
-      const prompt = `Analyze the following content (${type}):\n"${input}"\n\nReturn JSON output matching the ChasChecker AI analysis schema.`;
-      
-      let response;
-      if (fileData && fileMimeType) {
-        // fileData is expected to be a data URL (e.g. data:image/png;base64,iVBORw0KGgo...)
-        const base64String = fileData.includes(',') ? fileData.split(',')[1] : fileData;
-        const parts = [
-          prompt,
-          {
-            inlineData: {
-              data: base64String,
-              mimeType: fileMimeType
-            }
-          }
-        ];
-        response = await model.generateContent(parts);
-      } else {
-        response = await model.generateContent(prompt);
-      }
-      
-      const text = response.response.text();
+  try {
+    const prompt = `Analyze the following content (${type}):\n"${input}"\n\nReturn JSON output matching the ChasChecker AI analysis schema.`;
+    
+    const text = await generateGeminiAnalysis(
+      systemPrompt,
+      prompt,
+      fileData,
+      fileMimeType
+    );
+    
+    if (text) {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
@@ -452,9 +438,9 @@ export async function analyzeContent(
           };
         }
       }
-    } catch (err) {
-      console.warn('Gemini 3.1 Pro live call fallback:', err);
     }
+  } catch (err) {
+    console.warn('Gemini 3.1 Pro live call fallback:', err);
   }
 
   // Fallback to local deterministic safety engine
