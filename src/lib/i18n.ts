@@ -109,7 +109,8 @@ const translations: Record<TranslationKey, { en: string; km: string }> = {
   // Guide Modal
   'guide.title': { en: 'Quick Help Guide', km: 'ការណែនាំរហ័ស' },
   'guide.tab_link': { en: '🔗 Copy Link', km: '🔗 ចម្លងតំណ' },
-  'guide.tab_screenshot': { en: '📸 Take Screenshot', km: '📸 ថតរូបអេក្រង់' },
+  'guide.tab_screenshot': { en: '📸 Screenshot', km: '📸 ថតរូបអេក្រង់' },
+  'guide.tab_message': { en: '💬 Copy Text', km: '💬 ចម្លងសារ' },
   'guide.ios_link_s1': { en: '🔗 Tap and hold the link until a menu pops up.', km: '🔗 ចុចឱ្យជាប់លើតំណរហូតដល់ផ្ទាំងម៉ឺនុយបង្ហាញឡើង។' },
   'guide.ios_link_s2': { en: '✅ Tap "Copy Link" — then paste it into this app!', km: '✅ ចុចយក "ចម្លងតំណ" (Copy Link) — រួចបិទភ្ជាប់ក្នុងកម្មវិធីនេះ!' },
   'guide.android_link_s1': { en: '🔗 Tap and hold the link until a menu appears.', km: '🔗 ចុចឱ្យជាប់លើតំណរហូតដល់ផ្ទាំងម៉ឺនុយបង្ហាញឡើង។' },
@@ -118,6 +119,10 @@ const translations: Record<TranslationKey, { en: string; km: string }> = {
   'guide.ios_ss_s2': { en: '📲 Tap the preview screenshot to save it.', km: '📲 ចុចលើរូបភាពតូចខាងក្រោមដើម្បីរក្សាទុក។' },
   'guide.android_ss_s1': { en: '⚡ Press Power + Volume Down buttons at the same time.', km: '⚡ ចុចប៊ូតុងបិទបើក + ប៊ូតុងបន្ថយសំឡេងក្នុងពេលតែមួយ។' },
   'guide.android_ss_s2': { en: '📲 Find your screenshot in your phone gallery.', km: '📲 ស្វែងរករូបភាព Screenshot របស់អ្នកក្នុងអាល់ប៊ុមរូបភាព។' },
+  'guide.ios_msg_s1': { en: '💬 Press and hold the message in Facebook, Telegram, or SMS until a menu pops up.', km: '💬 ចុចឱ្យជាប់លើសារក្នុង Facebook, Telegram ឬ SMS រហូតដល់ផ្ទាំងម៉ឺនុយបង្ហាញឡើង។' },
+  'guide.ios_msg_s2': { en: '✅ Tap "Copy" — then open Chascheck and paste it into the "Type Text" tab!', km: '✅ ចុចយក "ចម្លង" (Copy) — រួចបើក Chascheck បិទភ្ជាប់ក្នុងទំព័រ "វាយអក្សរ"!' },
+  'guide.android_msg_s1': { en: '💬 Press and hold the message in your chat app until an option menu appears.', km: '💬 ចុចឱ្យជាប់លើសារក្នុងកម្មវិធីឆាតរបស់អ្នក រហូតដល់ផ្ទាំងម៉ឺនុយបង្ហាញឡើង។' },
+  'guide.android_msg_s2': { en: '✅ Tap "Copy text" — then open Chascheck and paste it into the "Type Text" tab!', km: '✅ ចុចយក "ចម្លងអក្សរ" (Copy text) — រួចបើក Chascheck បិទភ្ជាប់ក្នុងទំព័រ "វាយអក្សរ"!' },
 };
 
 export function t(key: TranslationKey, lang: Language): string {

@@ -97,4 +97,18 @@ export const LESSONS: Lesson[] = [
       { id: 'q1', question: 'What does the "S" in STOP stand for?', questionKm: '"S" ក្នុង STOP មានន័យថាអ្វី?', options: [ { id: 'a', text: 'Share', textKm: 'ចែករំលែក' }, { id: 'b', text: 'Source', textKm: 'ប្រភព' }, { id: 'c', text: 'Scary', textKm: 'គួរអោយភ័យ' }, { id: 'd', text: 'Speed', textKm: 'ល្បឿន' } ], correctOptionId: 'b', explanation: 'S = Source. Always check where the information came from before sharing.', explanationKm: 'S = ប្រភព។ ពិនិត្យប្រភពព័ត៌មានមុននឹងចែករំលែក។' },
     ],
   },
+  {
+    id: '8', slug: 'how-to-copy-paste',
+    title: 'How to Copy & Paste Messages', titleKm: 'របៀបចម្លង និង បិទភ្ជាប់សារ',
+    description: 'Learn how to easily copy text from Messenger, Telegram, or SMS into Chascheck.', descriptionKm: 'រៀនរបៀបចម្លងអក្សរពី Messenger, Telegram ឬ SMS មកកាន់ Chascheck។',
+    icon: '📋', duration: 2, difficulty: 'beginner',
+    slides: [
+      { id: 's1', type: 'intro', title: 'Why Copy & Paste?', titleKm: 'ហេតុអ្វីត្រូវចម្លង និង បិទភ្ជាប់?', content: 'When you receive suspicious texts, lottery wins, or bank links in Messenger or Telegram, copying the exact message is the fastest way to check it for scams.', contentKm: 'ពេលទទួលសារគួរអោយសង្ស័យ ឈ្នះឆ្នោត ឬ តំណធនាគារក្នុង Messenger ឬ Telegram ការចម្លងសារជាវិធីលឿនបំផុតដើម្បីពិនិត្យ។' },
+      { id: 's2', type: 'tip', title: 'Step 1: Press & Hold', titleKm: 'ជំហានទី ១: ចុចអោយជាប់', content: 'In your chat app (Telegram, Messenger, SMS), press and hold down on the message bubble until a pop-up menu appears.', contentKm: 'ក្នុងកម្មវិធីឆាតរបស់អ្នក (Telegram, Messenger, SMS) ចុចអោយជាប់លើសាររហូតដល់ផ្ទាំងម៉ឺនុយបង្ហាញឡើង។', goodExample: '💡 Touch and hold the text bubble for 1 second', goodExampleKm: '💡 ចុចអោយជាប់លើសាររយៈពេល ១ វិនាទី' },
+      { id: 's3', type: 'tip', title: 'Step 2: Tap Copy & Paste Here', titleKm: 'ជំហានទី ២: ចុច "ចម្លង" រួចបិទភ្ជាប់', content: 'Tap "Copy" from the menu. Then open Chascheck, go to Verify or Scam Checker, tap the text box, and press "Paste"!', contentKm: 'ចុចយក "ចម្លង" (Copy) ពីម៉ឺនុយ។ បន្ទាប់មកបើក Chascheck ចូលទំព័រពិនិត្យ ចុចលើប្រអប់អក្សរ ហើយជ្រើស "បិទភ្ជាប់" (Paste)!' },
+    ],
+    quiz: [
+      { id: 'q1', question: 'How do you copy a suspicious message in a chat app?', questionKm: 'តើអ្នកចម្លងសារគួរអោយសង្ស័យក្នុងកម្មវិធីឆាតដោយរបៀបណា?', options: [ { id: 'a', text: 'Take a picture of the screen with another phone', textKm: 'ថតរូបអេក្រង់ដោយទូរស័ព្ទមួយទៀត' }, { id: 'b', text: 'Press and hold the message until a menu pops up, then tap Copy', textKm: 'ចុចអោយជាប់លើសាររហូតដល់ម៉ឺនុយបង្ហាញ រួចចុច Copy' }, { id: 'c', text: 'Re-type every word manually', textKm: 'វាយអក្សរឡើងវិញគ្រប់ពាក្យ' }, { id: 'd', text: 'Delete the message instantly', textKm: 'លុបសារភ្លាមៗ' } ], correctOptionId: 'b', explanation: 'Pressing and holding down on a message opens the context menu to copy it in one tap.', explanationKm: 'ការចុចអោយជាប់លើសារនឹងបើកម៉ឺនុយដើម្បីចម្លងបានក្នុងមួយចុច។' },
+    ],
+  },
 ];

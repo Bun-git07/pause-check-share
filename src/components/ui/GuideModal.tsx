@@ -1,14 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Smartphone, Apple, Link2, Camera, HelpCircle } from 'lucide-react';
+import { X, Smartphone, Apple, Link2, Camera, MessageSquare, HelpCircle } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
 import { t } from '@/lib/i18n';
 
 interface GuideModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defaultTab?: 'link' | 'screenshot';
+  defaultTab?: 'link' | 'screenshot' | 'message';
 }
 
 export default function GuideModal({ isOpen, onClose, defaultTab = 'link' }: GuideModalProps) {
@@ -16,21 +16,26 @@ export default function GuideModal({ isOpen, onClose, defaultTab = 'link' }: Gui
   const lang = settings.language;
   const khmer = lang === 'km';
 
-  const [activeTab, setActiveTab] = useState<'link' | 'screenshot'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'link' | 'screenshot' | 'message'>(defaultTab);
   const [device, setDevice] = useState<'ios' | 'android'>('ios');
 
   if (!isOpen) return null;
 
-  const isLink = activeTab === 'link';
   const isIos = device === 'ios';
 
-  const step1 = isLink
-    ? isIos ? t('guide.ios_link_s1', lang) : t('guide.android_link_s1', lang)
-    : isIos ? t('guide.ios_ss_s1', lang) : t('guide.android_ss_s1', lang);
+  let step1 = '';
+  let step2 = '';
 
-  const step2 = isLink
-    ? isIos ? t('guide.ios_link_s2', lang) : t('guide.android_link_s2', lang)
-    : isIos ? t('guide.ios_ss_s2', lang) : t('guide.android_ss_s2', lang);
+  if (activeTab === 'link') {
+    step1 = isIos ? t('guide.ios_link_s1', lang) : t('guide.android_link_s1', lang);
+    step2 = isIos ? t('guide.ios_link_s2', lang) : t('guide.android_link_s2', lang);
+  } else if (activeTab === 'screenshot') {
+    step1 = isIos ? t('guide.ios_ss_s1', lang) : t('guide.android_ss_s1', lang);
+    step2 = isIos ? t('guide.ios_ss_s2', lang) : t('guide.android_ss_s2', lang);
+  } else {
+    step1 = isIos ? t('guide.ios_msg_s1', lang) : t('guide.android_msg_s1', lang);
+    step2 = isIos ? t('guide.ios_msg_s2', lang) : t('guide.android_msg_s2', lang);
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200">
@@ -56,30 +61,42 @@ export default function GuideModal({ isOpen, onClose, defaultTab = 'link' }: Gui
 
         <div className="p-5 space-y-5">
           {/* Main Action Type Tabs */}
-          <div className="grid grid-cols-2 gap-2 p-1.5 bg-[var(--color-primary-light)] rounded-2xl">
+          <div className="grid grid-cols-3 gap-1.5 p-1.5 bg-[var(--color-primary-light)] rounded-2xl">
             <button
               onClick={() => setActiveTab('link')}
-              className={`py-2.5 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+              className={`py-2 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all ${
                 activeTab === 'link'
                   ? 'bg-[var(--color-primary)] text-white shadow-md'
                   : 'text-[var(--color-primary)] hover:bg-white/50'
               }`}
               style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}
             >
-              <Link2 size={16} />
+              <Link2 size={14} />
               {t('guide.tab_link', lang)}
             </button>
             <button
               onClick={() => setActiveTab('screenshot')}
-              className={`py-2.5 px-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+              className={`py-2 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all ${
                 activeTab === 'screenshot'
                   ? 'bg-[var(--color-primary)] text-white shadow-md'
                   : 'text-[var(--color-primary)] hover:bg-white/50'
               }`}
               style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}
             >
-              <Camera size={16} />
+              <Camera size={14} />
               {t('guide.tab_screenshot', lang)}
+            </button>
+            <button
+              onClick={() => setActiveTab('message')}
+              className={`py-2 px-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-all ${
+                activeTab === 'message'
+                  ? 'bg-[var(--color-primary)] text-white shadow-md'
+                  : 'text-[var(--color-primary)] hover:bg-white/50'
+              }`}
+              style={{ fontFamily: khmer ? 'var(--font-khmer)' : 'inherit' }}
+            >
+              <MessageSquare size={14} />
+              {t('guide.tab_message', lang)}
             </button>
           </div>
 
