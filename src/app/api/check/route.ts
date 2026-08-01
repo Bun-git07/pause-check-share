@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { generateText } from 'ai';
 
-// Initialize the Google Generative AI client if key is available
-const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+// Initialize Google AI provider with GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY
+const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+const google = apiKey ? createGoogleGenerativeAI({ apiKey }) : null;
 
 const SYSTEM_INSTRUCTION = `# ROLE & PURPOSE
 You are "Chas Checker AI" (ឈប់ ពិនិត្យ ចែករំលែក) — an elite digital safety assistant specializing in identifying online scams, phishing links, malicious downloads, fake bank receipts, social media impersonation, and misleading text messages across Cambodian and Southeast Asian digital ecosystems.
@@ -178,8 +179,8 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     
-    // Setup prompt parts
-    const promptParts: any[] = [];
+    // Setup prompt parts for Vercel AI SDK
+    const contentParts: any[] = [];
     let accumulatedText = '';
     let hasImage = false;
     
@@ -188,43 +189,45 @@ export async function POST(req: NextRequest) {
       if (value instanceof Blob) {
         hasImage = true;
         const arrayBuffer = await value.arrayBuffer();
-        const base64Data = Buffer.from(arrayBuffer).toString('base64');
-        promptParts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: value.type,
-          },
+        contentParts.push({
+          type: 'image',
+          image: new Uint8Array(arrayBuffer),
+          mimeType: value.type,
         });
       } else if (typeof value === 'string' && value.trim() !== '') {
         accumulatedText += ' ' + value;
-        if (key === 'text' || key === 'content') {
-          promptParts.push(value);
-        } else {
-          promptParts.push(`${key}: ${value}`);
-        }
+        const textContent = (key === 'text' || key === 'content') ? value : `${key}: ${value}`;
+        contentParts.push({
+          type: 'text',
+          text: textContent,
+        });
       }
     }
 
-    if (promptParts.length === 0) {
+    if (contentParts.length === 0) {
       return NextResponse.json(
         { error: 'No input provided for analysis' },
         { status: 400 }
       );
     }
 
-    // Call Gemini API if client is available
-    if (genAI) {
+    // Call Gemini 2.5 Flash via Vercel AI SDK if provider is available
+    if (google) {
       try {
-        const model = genAI.getGenerativeModel({
-          model: 'gemini-2.5-flash',
-          systemInstruction: SYSTEM_INSTRUCTION,
+        const { text: responseText } = await generateText({
+          model: google('gemini-2.5-flash'),
+          system: SYSTEM_INSTRUCTION,
+          messages: [
+            {
+              role: 'user',
+              content: contentParts,
+            },
+          ],
         });
 
-        const result = await model.generateContent(promptParts);
-        const responseText = result.response.text();
         return NextResponse.json({ result: responseText });
       } catch (geminiError) {
-        console.warn('Gemini API call failed, falling back to rule engine:', geminiError);
+        console.warn('Vercel AI SDK (Gemini 2.5 Flash) call failed, falling back to rule engine:', geminiError);
       }
     }
 
