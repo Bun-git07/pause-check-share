@@ -1,9 +1,11 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { generateText } from 'ai';
 
-// Initialize Google AI provider with GEMINI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY
-const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+// Initialize Google AI provider with GOOGLE_GENERATIVE_AI_API_KEY or GEMINI_API_KEY
+const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
 const google = apiKey ? createGoogleGenerativeAI({ apiKey }) : null;
 
 const SYSTEM_INSTRUCTION = `# ROLE & PURPOSE
@@ -177,30 +179,48 @@ function generateFallbackAnalysis(inputText: string, hasImage: boolean): string 
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    
-    // Setup prompt parts for Vercel AI SDK
+    const contentType = req.headers.get('content-type') || '';
     const contentParts: any[] = [];
     let accumulatedText = '';
     let hasImage = false;
-    
-    // Process all fields from FormData
-    for (const [key, value] of Array.from(formData.entries())) {
-      if (value instanceof Blob) {
+
+    if (contentType.includes('application/json')) {
+      const json = await req.json();
+      
+      if (Array.isArray(json.messages) && json.messages.length > 0) {
+        return NextResponse.json({ result: json.messages });
+      }
+
+      const promptText = json.prompt || json.text || json.content || json.url || '';
+      if (promptText) {
+        accumulatedText += ' ' + promptText;
+        contentParts.push({ type: 'text', text: promptText });
+      }
+
+      if (json.imageUrl) {
         hasImage = true;
-        const arrayBuffer = await value.arrayBuffer();
-        contentParts.push({
-          type: 'image',
-          image: new Uint8Array(arrayBuffer),
-          mimeType: value.type,
-        });
-      } else if (typeof value === 'string' && value.trim() !== '') {
-        accumulatedText += ' ' + value;
-        const textContent = (key === 'text' || key === 'content') ? value : `${key}: ${value}`;
-        contentParts.push({
-          type: 'text',
-          text: textContent,
-        });
+        contentParts.push({ type: 'image', image: json.imageUrl });
+      }
+    } else {
+      const formData = await req.formData();
+      
+      for (const [key, value] of Array.from(formData.entries())) {
+        if (value instanceof Blob) {
+          hasImage = true;
+          const arrayBuffer = await value.arrayBuffer();
+          contentParts.push({
+            type: 'image',
+            image: new Uint8Array(arrayBuffer),
+            mimeType: value.type,
+          });
+        } else if (typeof value === 'string' && value.trim() !== '') {
+          accumulatedText += ' ' + value;
+          const textContent = (key === 'text' || key === 'content') ? value : `${key}: ${value}`;
+          contentParts.push({
+            type: 'text',
+            text: textContent,
+          });
+        }
       }
     }
 
