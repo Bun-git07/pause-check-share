@@ -78,6 +78,7 @@ export default function VerifyPage() {
       } else if (tab === 'text' && textInput.trim()) {
         formData.append('text', textInput.trim());
       }
+      formData.append('language', lang);
 
       const res = await fetch('/api/check', {
         method: 'POST',

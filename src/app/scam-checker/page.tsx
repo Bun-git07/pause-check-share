@@ -56,6 +56,7 @@ export default function ScamCheckerPage() {
       } else if (mode === 'text' && text.trim()) {
         formData.append('text', text);
       }
+      formData.append('language', lang);
 
       const res = await fetch('/api/check', {
         method: 'POST',

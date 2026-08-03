@@ -82,6 +82,15 @@ Provide 2 to 3 immediate, numbered, actionable steps tailored to the situation:
 ### 4. SAFETY TIP
 💡 **Pro Tip**: Provide a single, concise sentence helping the user spot this specific trick or threat in the future.`;
 
+function translateHeadingsToKhmer(text: string): string {
+  let translated = text;
+  translated = translated.replace(/### 1\. VERDICT & RISK LEVEL/gi, '### 1. លទ្ធផល និងកម្រិតហានិភ័យ');
+  translated = translated.replace(/### 2\. SIGNAL BREAKDOWN/gi, '### 2. ការបំបែកសញ្ញា');
+  translated = translated.replace(/### 3\. WHAT TO DO NEXT(?: \(RECOMMENDATIONS\))?/gi, '### 3. អ្វីដែលត្រូវធ្វើបន្ទាប់');
+  translated = translated.replace(/### 4\. SAFETY TIP/gi, '### 4. គន្លឹះសុវត្ថិភាព');
+  return translated;
+}
+
 function generateFallbackAnalysis(inputText: string, hasImage: boolean): string {
   const lower = inputText.toLowerCase();
 
@@ -240,6 +249,7 @@ export async function POST(req: NextRequest) {
     const contentParts: any[] = [];
     let accumulatedText = '';
     let hasImage = false;
+    let language = 'en';
 
     if (contentType.includes('application/json')) {
       try {
@@ -263,6 +273,8 @@ export async function POST(req: NextRequest) {
             }
           }
         }
+
+        language = json.language || 'en';
 
         const promptText = json.prompt || json.text || json.content || json.url || '';
         if (promptText) {
@@ -289,6 +301,8 @@ export async function POST(req: NextRequest) {
             image: new Uint8Array(arrayBuffer),
             mimeType: value.type,
           });
+        } else if (key === 'language' && typeof value === 'string') {
+          language = value;
         } else if (typeof value === 'string' && value.trim() !== '') {
           accumulatedText += ' ' + value;
           const textContent = (key === 'text' || key === 'content') ? value : `${key}: ${value}`;
@@ -329,6 +343,10 @@ export async function POST(req: NextRequest) {
           responseText = res.text;
         }
 
+        if (language === 'km') {
+          responseText = translateHeadingsToKhmer(responseText);
+        }
+
         return NextResponse.json({ result: responseText });
       } catch (geminiError) {
         console.warn('Vercel AI SDK (Gemini) call failed, falling back to rule engine:', geminiError);
@@ -336,7 +354,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Rule engine fallback when API key is missing or API call fails
-    const fallbackResponse = generateFallbackAnalysis(accumulatedText.trim(), hasImage);
+    let fallbackResponse = generateFallbackAnalysis(accumulatedText.trim(), hasImage);
+    if (language === 'km') {
+      fallbackResponse = translateHeadingsToKhmer(fallbackResponse);
+    }
     return NextResponse.json({ result: fallbackResponse });
 
   } catch (error) {
