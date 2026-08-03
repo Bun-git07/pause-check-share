@@ -1,12 +1,13 @@
 'use client';
 import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, MessageSquare } from 'lucide-react';
+import { Upload, MessageSquare, Volume2, VolumeX } from 'lucide-react';
 import TopBar from '@/components/layout/TopBar';
 import BottomNav from '@/components/layout/BottomNav';
 import { AnalyzingOverlay } from '@/components/ui/LoadingSpinner';
 import GuideModal from '@/components/ui/GuideModal';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useVoice } from '@/hooks/useVoice';
 import { t } from '@/lib/i18n';
 import ReactMarkdown from 'react-markdown';
 import { ContentType } from '@/types';
@@ -15,7 +16,8 @@ const SEVERITY_COLOR: Record<string, string> = { low: '#43A047', medium: '#F9A82
 
 export default function ScamCheckerPage() {
   const router = useRouter();
-  const { settings } = useSettings();
+  const { settings, updateSetting } = useSettings();
+  const { toggle, speaking, stop } = useVoice();
   const lang = settings.language;
   const khmer = lang === 'km';
 
@@ -179,7 +181,25 @@ export default function ScamCheckerPage() {
 
         {/* Result */}
         {aiResponse && !analyzing && (
-          <div className="card p-5 markdown-body">
+          <div className="card p-5 markdown-body relative">
+            <button
+              onClick={() => {
+                if (!settings.voiceEnabled) {
+                  updateSetting('voiceEnabled', true);
+                  toggle(aiResponse, lang);
+                } else {
+                  toggle(aiResponse, lang);
+                }
+              }}
+              className={`absolute top-4 right-4 btn-ghost !w-8 !h-8 !min-h-0 !p-0 ${speaking ? 'animate-pulse text-[var(--color-primary)]' : ''}`}
+              aria-label={settings.voiceEnabled ? 'Voice reading active' : 'Enable voice reading'}
+              title={speaking ? 'Speaking...' : settings.voiceEnabled ? 'Voice ON (Tap to read)' : 'Voice OFF'}
+            >
+              {settings.voiceEnabled || speaking
+                ? <Volume2 size={20} color="var(--color-primary)" className={speaking ? 'scale-110 transition-transform' : ''} />
+                : <VolumeX size={20} color="var(--color-text-muted)" />
+              }
+            </button>
             <ReactMarkdown>{aiResponse}</ReactMarkdown>
           </div>
         )}

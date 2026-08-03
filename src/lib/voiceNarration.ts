@@ -20,6 +20,7 @@ export function speakText(
   const cleanText = text
     .replace(/[🚨🟢🟡🔴🚩⚠️💡❌✅🏛️💰😱🤖🎬📢🔎🎁⚡🔒🔍👥🖼️🔐💊⛔📁]/g, '')
     .replace(/http[s]?:\/\/\S+/g, 'link')
+    .replace(/[*#_`>-]/g, '')
     .trim();
 
   if (!cleanText) return;
